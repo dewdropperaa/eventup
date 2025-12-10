@@ -58,13 +58,34 @@
                               │  (role='admin')   │
                               └─────────┬─────────┘
                                         │
-                        ┌───────────────┴───────────────┐
-                        │                               │
-                  ┌─────▼──────────┐           ┌─────▼──────────┐
-                  │manage_tasks.php│           │invite_          │
-                  │ (Admin Only)   │           │organizers.php   │
-                  └────────────────┘           │ (Admin Only)    │
-                                              └─────────────────┘
+                    ┌─────────┴─────────┐
+                    │                   │
+              ┌─────▼──────────┐ ┌─────▼──────────┐
+              │manage_tasks.php│ │invite_        │
+              │ (Admin Only)   │ │organizers.php │
+              └────────────────┘ │ (Admin Only)  │
+                                   └────────────────┘
+                              │
+                              ▼
+                    ┌─────────┴─────────┐
+                    │  Event Owner     │
+                    │  (created_by)    │
+                    └─────────┬─────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+              ┌─────▼──────────┐ ┌─────▼──────────┐
+              │event_         │ │budget.php     │
+              │permissions.php│ │(Budget Mgmt)  │
+              └────────────────┘ └────────────────┘
+                              │
+                              ▼
+                    ┌─────────┴─────────┐
+                    │                   │
+              ┌─────▼──────────┐ ┌─────▼──────────┐
+              │communication_  │ │resources.php  │
+              │hub.php         │ │(Resource Mgmt)│
+              └────────────────┘ └────────────────┘
 ```
 
 ## Database Schema Diagram
@@ -135,6 +156,135 @@
 │ created_at               │
 │ used                     │
 └──────────────────────────┘
+
+┌──────────────────────────┐
+│  EVENT_ORGANIZERS        │
+├──────────────────────────┤
+│ id (PK)                  │
+│ event_id (FK→EVENTS)     │
+│ user_id (FK→USERS)       │
+│ role (admin/organizer)   │
+│ created_at               │
+└────────┬─────────────────┘
+         │
+         │ (1:N)
+         │
+┌────────▼──────────────────┐
+│  EVENT_PERMISSIONS       │
+├──────────────────────────┤
+│ id (PK)                  │
+│ event_id (FK→EVENTS)     │
+│ user_id (FK→USERS)       │
+│ permission_name          │
+│ granted (BOOLEAN)        │
+│ created_at               │
+│ updated_at               │
+└────────┬─────────────────┘
+         │
+         │ (1:N)
+         │
+┌────────▼──────────────────┐
+│  EVENT_MESSAGES          │
+├──────────────────────────┤
+│ id (PK)                  │
+│ event_id (FK→EVENTS)     │
+│ user_id (FK→USERS)       │
+│ message_text             │
+│ created_at               │
+└────────┬─────────────────┘
+         │
+         │ (1:N)
+         │
+┌────────▼──────────────────┐
+│  EVENT_RESOURCES         │
+├──────────────────────────┤
+│ id (PK)                  │
+│ event_id (FK→EVENTS)     │
+│ nom                      │
+│ type                     │
+│ quantite_totale          │
+│ description              │
+│ date_disponibilite_debut │
+│ date_disponibilite_fin   │
+│ image_path               │
+│ statut                   │
+│ created_at               │
+│ updated_at               │
+└────────┬─────────────────┘
+         │
+         │ (1:N)
+         │
+┌────────▼──────────────────┐
+│  RESOURCE_BOOKINGS       │
+├──────────────────────────┤
+│ id (PK)                  │
+│ resource_id (FK)         │
+│ user_id (FK→USERS)       │
+│ event_id (FK→EVENTS)     │
+│ date_debut               │
+│ date_fin                 │
+│ statut                   │
+│ notes                    │
+│ created_at               │
+│ updated_at               │
+└────────┬─────────────────┘
+         │
+         │ (1:N)
+         │
+┌────────▼──────────────────┐
+│  EVENT_BUDGET_SETTINGS   │
+├──────────────────────────┤
+│ id (PK)                  │
+│ event_id (UNIQUE FK)     │
+│ budget_limit             │
+│ currency                 │
+│ created_at               │
+│ updated_at               │
+└────────┬─────────────────┘
+         │
+         │ (1:N)
+         │
+┌────────▼──────────────────┐
+│  EVENT_EXPENSES          │
+├──────────────────────────┤
+│ id (PK)                  │
+│ event_id (FK)            │
+│ category                 │
+│ title                    │
+│ amount                   │
+│ date                     │
+│ notes                    │
+│ created_at               │
+│ updated_at               │
+└────────┬─────────────────┘
+         │
+         │ (1:N)
+         │
+┌────────▼──────────────────┐
+│  EVENT_INCOMES           │
+├──────────────────────────┤
+│ id (PK)                  │
+│ event_id (FK)            │
+│ source                   │
+│ title                    │
+│ amount                   │
+│ date                     │
+│ notes                    │
+│ created_at               │
+│ updated_at               │
+└─────────────────────────┘
+
+┌──────────────────────────┐
+│  NOTIFICATIONS           │
+├──────────────────────────┤
+│ id (PK)                  │
+│ user_id (FK→USERS)       │
+│ message                  │
+│ type                     │
+│ related_event_id         │
+│ is_read (BOOLEAN)        │
+│ created_at               │
+└──────────────────────────┘
 ```
 
 ## Access Control Layer
@@ -182,26 +332,33 @@
 ## Page Access Control Matrix
 
 ```
-┌──────────────────────────┬────────┬───────┬──────────┬───────┐
-│ Page                     │ Public │ Login │ Organizer│ Admin │
-├──────────────────────────┼────────┼───────┼──────────┼───────┤
-│ index.php                │   ✓    │   ✓   │    ✓     │   ✓   │
-│ login.php                │   ✓    │   ✓   │    ✓     │   ✓   │
-│ register.php             │   ✓    │   ✓   │    ✓     │   ✓   │
-│ event_details.php        │   ✓    │   ✓   │    ✓     │   ✓   │
-├──────────────────────────┼────────┼───────┼──────────┼───────┤
-│ dashboard.php            │        │   ✓   │    ✓     │   ✓   │
-│ logout.php               │        │   ✓   │    ✓     │   ✓   │
-├──────────────────────────┼────────┼───────┼──────────┼───────┤
-│ organizer_dashboard.php  │        │       │    ✓     │   ✓   │
-│ create_event.php         │        │   ✓   │    ✓     │   ✓   │
-│ edit_event.php           │        │   ✓   │    ✓     │   ✓   │
-│ my_tasks.php             │        │   ✓   │    ✓     │   ✓   │
-│ register_from_invite.php │   ✓    │   ✓   │    ✓     │   ✓   │
-├──────────────────────────┼────────┼───────┼──────────┼───────┤
-│ manage_tasks.php         │        │       │          │   ✓   │
-│ invite_organizers.php    │        │       │          │   ✓   │
-└──────────────────────────┴────────┴───────┴──────────┴───────┘
+┌──────────────────────────┬────────┬───────┬──────────┬───────┬──────────┐
+│ Page                     │ Public │ Login │ Organizer│ Admin │ Owner │
+├──────────────────────────┼────────┼───────┼──────────┼───────┼──────────┤
+│ index.php                │   ✓    │   ✓   │    ✓     │   ✓   │    ✓    │
+│ login.php                │   ✓    │   ✓   │    ✓     │   ✓   │    ✓    │
+│ register.php             │   ✓    │   ✓   │    ✓     │   ✓   │    ✓    │
+│ event_details.php        │   ✓    │   ✓   │    ✓     │   ✓   │    ✓    │
+├──────────────────────────┼────────┼───────┼──────────┼───────┼──────────┤
+│ dashboard.php            │        │   ✓   │    ✓     │   ✓   │    ✓    │
+│ logout.php               │        │   ✓   │    ✓     │   ✓   │    ✓    │
+├──────────────────────────┼────────┼───────┼──────────┼───────┼──────────┤
+│ organizer_dashboard.php  │        │       │    ✓     │   ✓   │    ✓    │
+│ create_event.php         │        │   ✓   │    ✓     │   ✓   │    ✓    │
+│ edit_event.php           │        │   ✓   │    ✓     │   ✓   │    ✓    │
+│ my_tasks.php             │        │   ✓   │    ✓     │   ✓   │    ✓    │
+│ register_from_invite.php │   ✓    │   ✓   │    ✓     │   ✓   │    ✓    │
+├──────────────────────────┼────────┼───────┼──────────┼───────┼──────────┤
+│ manage_tasks.php         │        │       │          │   ✓   │    ✓    │
+│ invite_organizers.php    │        │       │          │   ✓   │    ✓    │
+├──────────────────────────┼────────┼───────┼──────────┼───────┼──────────┤
+│ event_permissions.php   │        │       │          │       │    ✓    │
+│ budget.php               │        │       │    ✓*    │   ✓   │    ✓    │
+│ communication_hub.php    │        │       │    ✓     │   ✓   │    ✓    │
+│ resources.php            │        │       │    ✓     │   ✓   │    ✓    │
+└──────────────────────────┴────────┴───────┴──────────┴───────┴──────────┘
+
+* Requires can_edit_budget permission
 ```
 
 ## Request Flow for Protected Pages
@@ -242,6 +399,14 @@ User Request
 └─────────────────────────────────┘
     │
     ├─ Not Admin ────────────────► Redirect to organizer_dashboard.php
+    │
+    ▼
+┌─────────────────────────────────┐
+│ canDo() [if needed]             │
+│ (Check: granular permissions)   │
+└─────────────────────────────────┘
+    │
+    ├─ No Permission ─────────────► Access denied / unauthorized.php
     │
     ▼
 ┌─────────────────────────────────┐
@@ -350,6 +515,20 @@ Layer 5: Database Security
 ├─ Cascading deletes for data integrity
 ├─ Unique constraints on email
 └─ Proper indexing for performance
+
+Layer 6: Granular Permissions
+├─ Event owner automatic access
+├─ Permission-based feature access
+├─ canDo() helper for permission checks
+├─ Default deny policy
+└─ AJAX permission updates
+
+Layer 7: Real-time Features
+├─ AJAX polling for messages
+├─ Dynamic notification loading
+├─ Real-time conflict detection
+├─ Toast notifications
+└─ Chart.js visualizations
 ```
 
 ## Deployment Architecture
@@ -378,7 +557,38 @@ Layer 5: Database Security
          ├─ /role_check.php (Access control)
          ├─ /header.php (Navigation)
          ├─ /footer.php
+         ├─ /notifications.php (Notification system)
+         ├─ /ajax_handler.php (AJAX endpoints)
+         │
+         ├─ Budget Management:
+         │  ├─ /budget.php (Main interface)
+         │  ├─ /add_expense.php
+         │  ├─ /add_income.php
+         │  ├─ /delete_expense.php
+         │  ├─ /delete_income.php
+         │  ├─ /update_budget_limit.php
+         │  └─ /generate_budget_pdf.php
+         │
+         ├─ Permissions Management:
+         │  ├─ /event_permissions.php (Main interface)
+         │  └─ /update_event_permission.php (AJAX endpoint)
+         │
+         ├─ Communication Hub:
+         │  ├─ /communication_hub.php (Main interface)
+         │  ├─ /send_message.php (Message handler)
+         │  └─ /fetch_messages.php (Message retrieval)
+         │
+         ├─ Resource Management:
+         │  ├─ /resources.php (Main interface)
+         │  ├─ /add_resource.php
+         │  ├─ /edit_resource.php
+         │  ├─ /get_resource.php
+         │  ├─ /book_resource.php
+         │  └─ /check_booking_conflict.php
+         │
          └─ /assets/ (Images, CSS, JS)
+            ├─ /uploads/resources/ (Resource images)
+            └─ /js/main.js
          │
          ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -392,5 +602,153 @@ Layer 5: Database Security
 │ • registrations                                              │
 │ • tasks                                                      │
 │ • event_invitations                                          │
+│ • event_organizers                                           │
+│ • event_permissions                                          │
+│ • event_messages                                             │
+│ • event_resources                                            │
+│ • resource_bookings                                          │
+│ • event_budget_settings                                      │
+│ • event_expenses                                             │
+│ • event_incomes                                              │
+│ • notifications                                              │
 └─────────────────────────────────────────────────────────────┘
+
+## Feature Modules Architecture
+
+### Budget Management System
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   BUDGET MANAGEMENT                         │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│  Budget Settings │    │   Expense Mgmt   │    │   Income Mgmt    │
+├──────────────────┤    ├──────────────────┤    ├──────────────────┤
+│ • Budget limit   │    │ • Add expenses  │    │ • Add income     │
+│ • Currency       │    │ • Categories     │    │ • Sources        │
+│ • Event-specific │    │ • Delete items  │    │ • Delete items   │
+└────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │   Visual Analytics      │
+                    ├─────────────────────────┤
+                    │ • Summary cards         │
+                    │ • Pie charts            │
+                    │ • Bar charts            │
+                    │ • Budget alerts         │
+                    │ • PDF export            │
+                    └─────────────────────────┘
+```
+
+### Event Permissions System
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 EVENT PERMISSIONS SYSTEM                    │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│   Event Owner    │    │  Permission UI   │    │  Permission API  │
+├──────────────────┤    ├──────────────────┤    ├──────────────────┤
+│ • Auto all perms │    │ • Toggle switches │    │ • AJAX updates  │
+│ • Grant/revoke   │    │ • Role badges    │    │ • Validation    │
+│ • Manage team    │    │ • Real-time save │    │ • JSON responses│
+└────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │   Available Permissions│
+                    ├─────────────────────────┤
+                    │ • can_edit_budget       │
+                    │ • can_manage_resources  │
+                    │ • can_invite_organizers │
+                    │ • can_publish_updates   │
+                    └─────────────────────────┘
+```
+
+### Communication Hub System
+```
+┌─────────────────────────────────────────────────────────────┐
+│                COMMUNICATION HUB SYSTEM                      │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│   Message UI     │    │  Message Handler │    │ Message Retrieval│
+├──────────────────┤    ├──────────────────┤    ├──────────────────┤
+│ • Chat interface │    │ • Send messages  │    │ • Fetch messages │
+│ • Auto-scroll    │    │ • Validation     │    │ • Polling (2s)   │
+│ • Timestamps     │    │ • Storage        │    │ • Format output  │
+│ • Enter to send  │    │ • Security       │    │ • Event-specific │
+└────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │     Features             │
+                    ├─────────────────────────┤
+                    │ • Real-time messaging   │
+                    │ • Organizer-only access │
+                    │ • Event-specific chats  │
+                    │ • XSS prevention        │
+                    │ • SQL injection protection│
+                    └─────────────────────────┘
+```
+
+### Resource Management System
+```
+┌─────────────────────────────────────────────────────────────┐
+│               RESOURCE MANAGEMENT SYSTEM                     │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│  Resource Mgmt   │    │  Booking System  │    │  Statistics      │
+├──────────────────┤    ├──────────────────┤    ├──────────────────┤
+│ • Create resources│    │ • Book resources │    │ • Usage rates    │
+│ • Edit resources │    │ • Conflict detect│    │ • Availability  │
+│ • Delete resources│    │ • Cancel bookings│    │ • Most booked   │
+│ • Image upload   │    │ • Status tracking│    │ • Status dist.  │
+└────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │     Features             │
+                    ├─────────────────────────┤
+                    │ • Resource categories   │
+                    │ • Quantity management   │
+                    │ • Date availability     │
+                    │ • Real-time conflicts   │
+                    │ • File upload security  │
+                    │ • Admin/organizer access│
+                    └─────────────────────────┘
+```
+
+### Notification System
+```
+┌─────────────────────────────────────────────────────────────┐
+│                NOTIFICATION SYSTEM                           │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│  Notification UI │    │ Notification API │    │ Notification DB  │
+├──────────────────┤    ├──────────────────┤    ├──────────────────┤
+│ • Bell icon      │    │ • Create notifications│ │ • Store messages │
+│ • Dropdown       │    │ • Mark as read   │    │ • User-specific  │
+│ • Dynamic load   │    │ • Get unread     │    │ • Type-based     │
+│ • Count badge    │    │ • Event linking  │    │ • Read status    │
+└────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │     Triggers             │
+                    ├─────────────────────────┤
+                    │ • Event registration    │
+                    │ • Task assignment       │
+                    │ • Organizer invitations  │
+                    │ • Budget updates         │
+                    │ • Resource bookings     │
+                    └─────────────────────────┘
 ```
