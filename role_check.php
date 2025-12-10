@@ -184,4 +184,171 @@ function canDo($event_id, $user_id, $permission_name) {
     }
 }
 
+/**
+ * Check if a user has a specific permission based on their role.
+ * This function checks the role-based permissions system.
+ *
+ * @param int $user_id The ID of the user.
+ * @param string $permission_name The name of the permission to check.
+ * @param string $context The context (global, department, event).
+ * @return bool True if the user has the permission, false otherwise.
+ */
+function hasRolePermission($user_id, $permission_name, $context = 'event') {
+    try {
+        $pdo = getDatabaseConnection();
+
+        // Get user's role from user_organizations table
+        $stmt = $pdo->prepare("
+            SELECT uo.role_id, r.name as role_name, rp.granted, rp.permission_name
+            FROM user_organizations uo
+            LEFT JOIN roles r ON uo.role_id = r.id
+            LEFT JOIN role_permissions rp ON r.id = rp.role_id AND rp.permission_name = ?
+            WHERE uo.user_id = ?
+        ");
+        $stmt->execute([$permission_name, $user_id]);
+        $result = $stmt->fetch();
+
+        if (!$result || !$result['role_id']) {
+            return false; // No role assigned
+        }
+
+        // Check if permission is granted
+        if ($result['granted'] === null) {
+            return false; // Permission not set for this role
+        }
+
+        // Check scope permission
+        $stmt = $pdo->prepare("
+            SELECT granted 
+            FROM role_permissions 
+            WHERE role_id = ? AND permission_name = 'scope'
+        ");
+        $stmt->execute([$result['role_id']]);
+        $scope_result = $stmt->fetch();
+
+        if ($scope_result) {
+            $scope = $scope_result['granted'];
+            
+            // Check if the scope allows this permission
+            if ($scope === 'global') {
+                return (bool)$result['granted'];
+            } elseif ($scope === 'department' && $context === 'department') {
+                return (bool)$result['granted'];
+            } elseif ($scope === 'event' && ($context === 'event' || $context === 'department')) {
+                return (bool)$result['granted'];
+            }
+        }
+
+        return (bool)$result['granted'];
+
+    } catch (PDOException $e) {
+        error_log('Error in hasRolePermission() function: ' . $e->getMessage());
+        return false; // Fail safely
+    }
+}
+
+/**
+ * Get user's role name
+ *
+ * @param int $user_id The ID of the user.
+ * @return string|null The role name or null if no role.
+ */
+function getUserRole($user_id) {
+    try {
+        $pdo = getDatabaseConnection();
+        $stmt = $pdo->prepare("
+            SELECT r.name 
+            FROM user_organizations uo
+            LEFT JOIN roles r ON uo.role_id = r.id
+            WHERE uo.user_id = ?
+        ");
+        $stmt->execute([$user_id]);
+        $result = $stmt->fetch();
+        return $result ? $result['name'] : null;
+    } catch (PDOException $e) {
+        error_log('Error in getUserRole() function: ' . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Check if user is admin (system-wide)
+ *
+ * @param int $user_id The ID of the user.
+ * @return bool True if user is admin, false otherwise.
+ */
+function isSystemAdmin($user_id = null) {
+    if ($user_id === null) {
+        $user_id = $_SESSION['user_id'] ?? null;
+    }
+    
+    if (!$user_id) {
+        return false;
+    }
+    
+    try {
+        $pdo = getDatabaseConnection();
+        $stmt = $pdo->prepare("
+            SELECT r.name 
+            FROM user_organizations uo
+            LEFT JOIN roles r ON uo.role_id = r.id
+            WHERE uo.user_id = ? AND r.name IN ('admin', 'Administrateur')
+        ");
+        $stmt->execute([$user_id]);
+        $result = $stmt->fetch();
+        return $result !== false;
+    } catch (PDOException $e) {
+        error_log('Error in isSystemAdmin() function: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Enhanced canDo function that combines event permissions and role permissions
+ *
+ * @param int $event_id The ID of the event.
+ * @param int $user_id The ID of the user.
+ * @param string $permission_name The name of the permission to check.
+ * @return bool True if the user has the permission, false otherwise.
+ */
+function canDoEnhanced($event_id, $user_id, $permission_name) {
+    // First check event-specific permissions (existing logic)
+    if (canDo($event_id, $user_id, $permission_name)) {
+        return true;
+    }
+    
+    // Then check role-based permissions
+    return hasRolePermission($user_id, $permission_name, 'event');
+}
+
+/**
+ * Get all permissions for a user's role
+ *
+ * @param int $user_id The ID of the user.
+ * @return array Array of permissions with granted status.
+ */
+function getUserRolePermissions($user_id) {
+    try {
+        $pdo = getDatabaseConnection();
+        $stmt = $pdo->prepare("
+            SELECT rp.permission_name, rp.granted 
+            FROM user_organizations uo
+            LEFT JOIN roles r ON uo.role_id = r.id
+            LEFT JOIN role_permissions rp ON r.id = rp.role_id
+            WHERE uo.user_id = ? AND rp.permission_name != 'scope'
+        ");
+        $stmt->execute([$user_id]);
+        $permissions = [];
+        
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $permissions[$row['permission_name']] = (bool)$row['granted'];
+        }
+        
+        return $permissions;
+    } catch (PDOException $e) {
+        error_log('Error in getUserRolePermissions() function: ' . $e->getMessage());
+        return [];
+    }
+}
+
 ?>

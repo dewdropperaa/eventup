@@ -33,6 +33,11 @@ try {
         exit();
     }
     
+    // Determine user roles for navigation
+    $isEventOwner = isset($_SESSION['user_id']) && $_SESSION['user_id'] == $event['created_by'];
+    $isEventAdmin = isEventAdmin($_SESSION['user_id'], $event_id);
+    $isEventOrganizer = isEventOrganizer($_SESSION['user_id'], $event_id);
+    
     // Get budget settings
     $stmt = $pdo->prepare('SELECT budget_limit, currency FROM event_budget_settings WHERE event_id = ?');
     $stmt->execute([$event_id]);
@@ -85,19 +90,44 @@ try {
 
 ?>
 
-<?php require 'header.php'; ?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventUp - Gestion du Budget</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding-top: 76px;
+            background-color: #f5f7fa;
+        }
+    </style>
+</head>
+<body>
+    <?php include 'event_header.php'; ?>
 
-<div class="row mb-4">
-    <div class="col-md-8">
-        <h1><i class="bi bi-wallet2"></i> Budget Management</h1>
-        <p class="text-muted">Event: <strong><?php echo htmlspecialchars($event['titre']); ?></strong></p>
-    </div>
-    <div class="col-md-4 text-end">
-        <a href="generate_budget_pdf.php?event_id=<?php echo $event_id; ?>" class="btn btn-danger" target="_blank">
-            <i class="bi bi-file-pdf"></i> Export PDF
-        </a>
-    </div>
-</div>
+<div class="container-fluid mt-4">
+    <div class="row">
+        <?php 
+        // Set eventId variable for event_nav.php
+        $eventId = $event_id;
+        include 'event_nav.php'; 
+        ?>
+        
+        <div class="col-lg-9">
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h1><i class="bi bi-wallet2"></i> Budget Management</h1>
+                    <p class="text-muted">Event: <strong><?php echo htmlspecialchars($event['titre']); ?></strong></p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="generate_budget_pdf.php?event_id=<?php echo $event_id; ?>" class="btn btn-danger" target="_blank">
+                        <i class="bi bi-file-pdf"></i> Export PDF
+                    </a>
+                </div>
+            </div>
 
 <!-- Summary Cards -->
 <div class="row mb-4">
@@ -696,5 +726,10 @@ function showToast(title, message, type = 'success') {
     setTimeout(() => toastContainer.remove(), 5000);
 }
 </script>
+        </div>
+    </div>
+</div>
 
-<?php require 'footer.php'; ?>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

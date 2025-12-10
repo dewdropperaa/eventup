@@ -64,6 +64,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once 'header.php';
 ?>
 
+<!-- Notice for new signup page -->
+<div class="alert alert-info alert-dismissible fade show" role="alert">
+    <i class="bi bi-info-circle"></i>
+    <strong>New Professional Sign Up Available!</strong> We've launched a new, modern signup experience with enhanced features and better security.
+    <a href="signup.php" class="alert-link">Try our new Sign Up page</a> for the best experience.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
 <div class="row justify-content-center">
     <div class="col-lg-6 col-md-8">
         <div class="card shadow-sm">

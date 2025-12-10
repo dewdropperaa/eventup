@@ -1,0 +1,340 @@
+<?php
+session_start();
+
+require 'database.php';
+require_once 'notifications.php';
+require_once 'role_check.php';
+
+$event = null;
+$organizers = [];
+$registrationCount = 0;
+$isRegistered = false;
+$isEventAdmin = false;
+$isEventOrganizer = false;
+$isEventOwner = false;
+$error = '';
+$success = '';
+
+// Get event ID from URL
+$eventId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+
+if ($eventId <= 0) {
+    $error = 'Invalid event ID.';
+} else {
+    try {
+        $pdo = getDatabaseConnection();
+        
+        // Fetch event details
+        $stmt = $pdo->prepare('SELECT id, titre, description, date, lieu, nb_max_participants, created_by FROM events WHERE id = ?');
+        $stmt->execute([$eventId]);
+        $event = $stmt->fetch();
+        
+        if (!$event) {
+            $error = 'Event not found.';
+        } else {
+            // Fetch organizers and admins
+            $stmt = $pdo->prepare('
+                SELECT u.id, u.nom, u.email, er.role 
+                FROM event_roles er 
+                JOIN users u ON er.user_id = u.id 
+                WHERE er.event_id = ? 
+                ORDER BY er.role DESC, u.nom ASC
+            ');
+            $stmt->execute([$eventId]);
+            $organizers = $stmt->fetchAll();
+            
+            // Count registrations
+            $stmt = $pdo->prepare('SELECT COUNT(*) as count FROM registrations WHERE event_id = ?');
+            $stmt->execute([$eventId]);
+            $result = $stmt->fetch();
+            $registrationCount = (int) $result['count'];
+            
+            // Check if current user is registered
+            if (isset($_SESSION['user_id'])) {
+                $stmt = $pdo->prepare('SELECT id FROM registrations WHERE user_id = ? AND event_id = ?');
+                $stmt->execute([$_SESSION['user_id'], $eventId]);
+                $isRegistered = (bool) $stmt->fetch();
+                
+                // Check if user is admin or organizer for this event
+                $isEventAdmin = isEventAdmin($_SESSION['user_id'], $eventId);
+                $isEventOrganizer = isEventOrganizer($_SESSION['user_id'], $eventId);
+
+                // Check if the current user is the owner of the event
+                if ($event && isset($event['created_by'])) {
+                    $isEventOwner = ($_SESSION['user_id'] == $event['created_by']);
+                }
+            }
+            
+            // Handle attend form submission
+            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['attend'])) {
+                if (!isset($_SESSION['user_id'])) {
+                    $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'];
+                    header('Location: login.php');
+                    exit;
+                }
+                
+                if ($registrationCount >= $event['nb_max_participants']) {
+                    $error = 'This event is full.';
+                } elseif ($isRegistered) {
+                    $error = 'You are already registered for this event.';
+                } else {
+                    try {
+                        $stmt = $pdo->prepare('INSERT INTO registrations (user_id, event_id, date_inscription) VALUES (?, ?, NOW())');
+                        $stmt->execute([$_SESSION['user_id'], $eventId]);
+                        $success = 'You have successfully registered for this event!';
+                        $isRegistered = true;
+                        
+                        // Refresh registration count
+                        $stmt = $pdo->prepare('SELECT COUNT(*) as count FROM registrations WHERE event_id = ?');
+                        $stmt->execute([$eventId]);
+                        $result = $stmt->fetch();
+                        $registrationCount = (int) $result['count'];
+
+                        // Notify all admins and organizers of this event about new participant
+                        try {
+                            // Get participant name
+                            $userName = '';
+                            $userStmt = $pdo->prepare('SELECT nom FROM users WHERE id = ?');
+                            $userStmt->execute([$_SESSION['user_id']]);
+                            $userRow = $userStmt->fetch();
+                            if ($userRow) {
+                                $userName = $userRow['nom'];
+                            }
+
+                            $rolesStmt = $pdo->prepare('SELECT user_id FROM event_roles WHERE event_id = ? AND role IN ("admin", "organizer")');
+                            $rolesStmt->execute([$eventId]);
+                            $roleUsers = $rolesStmt->fetchAll();
+                            foreach ($roleUsers as $ru) {
+                                $msg = ($userName ? $userName : 'A participant') . ' has registered for the event "' . $event['titre'] . '".';
+                                createNotification($ru['user_id'], 'New participant', $msg, $eventId);
+                            }
+                        } catch (Exception $inner) {
+                            error_log('Notification error on registration: ' . $inner->getMessage());
+                        }
+                    } catch (PDOException $e) {
+                        if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                            $error = 'You are already registered for this event.';
+                            $isRegistered = true;
+                        } else {
+                            $error = 'An error occurred while registering. Please try again.';
+                        }
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log('Error fetching event details: ' . $e->getMessage());
+        $error = 'An error occurred while loading the event.';
+    }
+}
+
+require 'header.php';
+?>
+
+<?php if ($error): ?>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-circle"></i>
+        <strong>Error!</strong> <?php echo htmlspecialchars($error); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+
+<?php if ($success): ?>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle"></i>
+        <strong>Success!</strong> <?php echo htmlspecialchars($success); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+
+<?php if ($event): ?>
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Event Details Card -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body">
+                    <h1 class="card-title mb-3"><?php echo htmlspecialchars($event['titre']); ?></h1>
+                    
+                    <div class="mb-4">
+                        <h5 class="mb-3">Event Information</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p class="mb-2">
+                                    <strong>Date & Time:</strong><br>
+                                    <?php echo htmlspecialchars((new DateTime($event['date']))->format('d/m/Y H:i')); ?>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2">
+                                    <strong>Location:</strong><br>
+                                    <?php echo htmlspecialchars($event['lieu']); ?>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5 class="mb-3">Description</h5>
+                        <p><?php echo nl2br(htmlspecialchars($event['description'] ?? 'No description available.')); ?></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Organizers Card -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-check"></i> Organizers
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <?php if (empty($organizers)): ?>
+                        <div class="p-3 text-center text-muted">
+                            <p class="mb-0">No organizers assigned.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    <?php foreach ($organizers as $organizer): ?>
+                                        <tr>
+                                            <td>
+                                                <strong><?php echo htmlspecialchars($organizer['nom']); ?></strong><br>
+                                                <small class="text-muted"><?php echo htmlspecialchars($organizer['email']); ?></small>
+                                            </td>
+                                            <td class="text-end align-middle">
+                                                <span class="badge bg-<?php echo $organizer['role'] === 'admin' ? 'danger' : 'info'; ?>">
+                                                    <?php echo htmlspecialchars(ucfirst($organizer['role'])); ?>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <small class="text-muted">
+                                <strong><?php echo count($organizers); ?></strong> organizer<?php echo count($organizers) !== 1 ? 's' : ''; ?>
+                            </small>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <!-- Capacity Card -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Capacity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <p class="mb-2">
+                            <strong><?php echo $registrationCount; ?> / <?php echo (int) $event['nb_max_participants']; ?></strong> registered
+                        </p>
+                        <div class="progress" role="progressbar" aria-valuenow="<?php echo $registrationCount; ?>" aria-valuemin="0" aria-valuemax="<?php echo (int) $event['nb_max_participants']; ?>">
+                            <div class="progress-bar" style="width: <?php echo ($registrationCount / (int) $event['nb_max_participants']) * 100; ?>%"></div>
+                        </div>
+                    </div>
+                    
+                    <?php if ($registrationCount >= $event['nb_max_participants']): ?>
+                        <div class="alert alert-warning mb-0">
+                            <strong>Event is full</strong>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-muted mb-0">
+                            <?php echo ((int) $event['nb_max_participants'] - $registrationCount); ?> spots remaining
+                        </p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <!-- Management Card (Owner/Organizer only) -->
+            <?php if ($isEventOwner || $isEventOrganizer): ?>
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-kanban"></i> Event Management</h5>
+                </div>
+                <div class="card-body">
+                    <?php if ($isEventOrganizer): ?>
+                        <a href="communication_hub.php?event_id=<?php echo $eventId; ?>" class="btn btn-outline-info w-100 mb-2">
+                            <i class="bi bi-chat-dots"></i> Communication Hub
+                        </a>
+                        <a href="resources.php?event_id=<?php echo $eventId; ?>" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="bi bi-tools"></i> Gestion des Ressources
+                        </a>
+                        <a href="budget.php?event_id=<?php echo $eventId; ?>" class="btn btn-outline-success w-100 mb-2">
+                            <i class="bi bi-wallet2"></i> Gestion du Budget
+                        </a>
+                    <?php endif; ?>
+                    <?php if ($isEventAdmin): ?>
+                        <a href="organizers.php?event_id=<?php echo $eventId; ?>" class="btn btn-outline-warning w-100 mb-2">
+                            <i class="bi bi-people"></i> Gestion des Organisateurs
+                        </a>
+                    <?php endif; ?>
+                    <?php if ($isEventOwner): ?>
+                        <a href="event_permissions.php?event_id=<?php echo $eventId; ?>" class="btn btn-outline-danger w-100">
+                            <i class="bi bi-shield-lock"></i> Gestion des Permissions
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <!-- Attend Button Card -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <?php if (!isset($_SESSION['user_id'])): ?>
+                        <p class="text-muted mb-3">Log in to attend this event.</p>
+                        <a href="login.php" class="btn btn-primary w-100">Login to Attend</a>
+                    <?php elseif ($isRegistered): ?>
+                        <div class="alert alert-success mb-0">
+                            <strong>✓ You are registered</strong>
+                        </div>
+                    <?php elseif ($registrationCount >= $event['nb_max_participants']): ?>
+                        <button class="btn btn-secondary w-100" disabled>Event Full</button>
+                    <?php else: ?>
+                        <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#attendModal">
+                            Attend Event
+                        </button>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Attend Confirmation Modal -->
+    <div class="modal fade" id="attendModal" tabindex="-1" aria-labelledby="attendModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="attendModalLabel">Confirm Registration</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to register for this event?</p>
+                    <p class="mb-0">
+                        <strong><?php echo htmlspecialchars($event['titre']); ?></strong><br>
+                        <small class="text-muted"><?php echo htmlspecialchars((new DateTime($event['date']))->format('d/m/Y H:i')); ?></small>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="POST" style="display: inline;">
+                        <button type="submit" name="attend" value="1" class="btn btn-success">Confirm Registration</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<?php else: ?>
+    <div class="alert alert-danger">
+        <?php echo htmlspecialchars($error ?: 'Event not found.'); ?>
+    </div>
+    <a href="index.php" class="btn btn-primary">Back to Events</a>
+<?php endif; ?>
+
+<?php require 'footer.php'; ?>
