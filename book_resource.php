@@ -4,10 +4,8 @@ session_start();
 require 'database.php';
 require_once 'role_check.php';
 
-// Check if user is logged in
 requireLogin();
 
-// Get parameters from POST
 $eventId = isset($_POST['event_id']) ? (int) $_POST['event_id'] : 0;
 $resourceId = isset($_POST['resource_id']) ? (int) $_POST['resource_id'] : 0;
 $dateDebut = isset($_POST['date_debut']) ? trim($_POST['date_debut']) : '';
@@ -19,7 +17,6 @@ if ($eventId <= 0 || $resourceId <= 0) {
     exit;
 }
 
-// Check if user is admin or organizer for this event
 if (!isEventOrganizer($_SESSION['user_id'], $eventId)) {
     header('Location: event_details.php?id=' . $eventId);
     exit;
@@ -28,22 +25,19 @@ if (!isEventOrganizer($_SESSION['user_id'], $eventId)) {
 $error = '';
 $pdo = getDatabaseConnection();
 
-// Validate input
 if (empty($dateDebut) || empty($dateFin)) {
-    $error = 'Start and end dates are required.';
+    $error = 'Les dates de début et de fin sont requises.';
 } else {
-    // Convert datetime-local format to proper datetime
     $dateDebut = str_replace('T', ' ', $dateDebut) . ':00';
     $dateFin = str_replace('T', ' ', $dateFin) . ':00';
 
-    // Validate dates
     $startTime = strtotime($dateDebut);
     $endTime = strtotime($dateFin);
 
     if ($startTime === false || $endTime === false) {
-        $error = 'Invalid date format.';
+        $error = 'Format de date invalide.';
     } elseif ($startTime >= $endTime) {
-        $error = 'End date must be after start date.';
+        $error = 'La date de fin doit être après la date de début.';
     }
 }
 
@@ -55,13 +49,13 @@ if (!$error) {
         $resource = $stmt->fetch();
 
         if (!$resource) {
-            $error = 'Resource not found.';
+            $error = 'Ressource non trouvée.';
         } elseif ($resource['statut'] !== 'Disponible') {
-            $error = 'This resource is not available.';
+            $error = 'Cette ressource n\'est pas disponible.';
         }
     } catch (PDOException $e) {
         error_log('Error checking resource: ' . $e->getMessage());
-        $error = 'Error checking resource.';
+        $error = 'Erreur lors de la vérification de la ressource.';
     }
 }
 
@@ -88,11 +82,11 @@ if (!$error) {
         $result = $stmt->fetch();
 
         if ($result['count'] > 0) {
-            $error = 'This resource is already booked for this time period.';
+            $error = 'Cette ressource est déjà réservée pour cette période.';
         }
     } catch (PDOException $e) {
         error_log('Error checking conflicts: ' . $e->getMessage());
-        $error = 'Error checking availability.';
+        $error = 'Erreur lors de la vérification de la disponibilité.';
     }
 }
 
@@ -118,7 +112,7 @@ if (!$error) {
         exit;
     } catch (PDOException $e) {
         error_log('Error creating booking: ' . $e->getMessage());
-        $error = 'Error creating booking. Please try again.';
+        $error = 'Erreur lors de la création de la réservation. Veuillez réessayer.';
     }
 }
 

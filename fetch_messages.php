@@ -1,10 +1,4 @@
 <?php
-/**
- * Fetch Messages Handler
- * Handles GET requests to fetch messages from event communication hub
- * Returns JSON array of messages for the specified event
- * Only organizers and event owners can fetch messages
- */
 
 session_start();
 header('Content-Type: application/json');
@@ -19,7 +13,6 @@ $response = [
 ];
 
 try {
-    // Check if user is logged in
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);
         $response['message'] = 'You must be logged in to fetch messages.';
@@ -27,7 +20,6 @@ try {
         exit;
     }
 
-    // Validate input
     $eventId = isset($_GET['event_id']) ? (int) $_GET['event_id'] : 0;
     $lastId = isset($_GET['last_id']) ? (int) $_GET['last_id'] : 0;
 
@@ -40,7 +32,6 @@ try {
 
     $pdo = getDatabaseConnection();
 
-    // Verify event exists
     $stmt = $pdo->prepare('SELECT id, created_by FROM events WHERE id = ?');
     $stmt->execute([$eventId]);
     $event = $stmt->fetch();
@@ -52,7 +43,6 @@ try {
         exit;
     }
 
-    // Check if user is organizer or event owner
     $isEventOwner = ($_SESSION['user_id'] == $event['created_by']);
     $isEventOrganizer = isEventOrganizer($_SESSION['user_id'], $eventId);
 
@@ -63,9 +53,7 @@ try {
         exit;
     }
 
-    // Fetch messages
     if ($lastId > 0) {
-        // Fetch only new messages since last_id
         $stmt = $pdo->prepare('
             SELECT 
                 em.id,
@@ -83,7 +71,6 @@ try {
         ');
         $stmt->execute([$_SESSION['user_id'], $eventId, $lastId]);
     } else {
-        // Fetch all messages (first load)
         $stmt = $pdo->prepare('
             SELECT 
                 em.id,
@@ -104,7 +91,6 @@ try {
 
     $messages = $stmt->fetchAll();
 
-    // Convert boolean values for JSON
     foreach ($messages as &$msg) {
         $msg['is_current_user'] = (bool) $msg['is_current_user'];
     }

@@ -10,10 +10,14 @@
  * - $isEventOrganizer: Boolean indicating if user is event organizer
  */
 
+// Check if user is logged in
+$isLoggedIn = isset($_SESSION['user_id']);
+
 // Determine current page
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
+<?php if ($isLoggedIn): ?>
 <style>
 .event-nav-sidebar {
     background: #f8f9fa;
@@ -44,7 +48,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 .event-nav-item.active {
     background-color: #fff8f0;
     color: #D94A00;
-    border-left-color: #D94A00;
+    border-left: 4px solid #D94A00 !important;
 }
 
 .event-nav-item i {
@@ -111,4 +115,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <span>Permissions</span>
     </a>
     <?php endif; ?>
+
+    <!-- Participants (Organizers only) -->
+    <?php if ($isEventOrganizer || $isEventOwner): ?>
+    <a href="event_participants.php?id=<?php echo $eventId; ?>" 
+       class="event-nav-item <?php echo $current_page === 'event_participants.php' ? 'active' : ''; ?>">
+        <i class="bi bi-person-check"></i>
+        <span>Participants</span>
+    </a>
+    <?php endif; ?>
 </div>
+<?php endif; ?>

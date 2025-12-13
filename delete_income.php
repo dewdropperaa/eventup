@@ -1,8 +1,4 @@
 <?php
-/**
- * Delete Income Handler
- * Handles deleting incomes from an event
- */
 
 session_start();
 require_once 'database.php';
@@ -10,14 +6,12 @@ require_once 'role_check.php';
 
 header('Content-Type: application/json');
 
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
 }
 
-// Get POST data
 $income_id = isset($_POST['income_id']) ? (int)$_POST['income_id'] : 0;
 
 if ($income_id <= 0) {
@@ -29,7 +23,6 @@ if ($income_id <= 0) {
 try {
     $pdo = getDatabaseConnection();
     
-    // Get income to verify event_id and check permission
     $stmt = $pdo->prepare('SELECT event_id FROM event_incomes WHERE id = ?');
     $stmt->execute([$income_id]);
     $income = $stmt->fetch();
@@ -42,14 +35,12 @@ try {
     
     $event_id = $income['event_id'];
     
-    // Check permission
     if (!canDo($event_id, $_SESSION['user_id'], 'can_edit_budget')) {
         http_response_code(403);
         echo json_encode(['success' => false, 'message' => 'Forbidden']);
         exit();
     }
     
-    // Delete income
     $stmt = $pdo->prepare('DELETE FROM event_incomes WHERE id = ?');
     $stmt->execute([$income_id]);
     

@@ -19,11 +19,11 @@ if (isset($_SESSION['success_message'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - EventUp</title>
+    <title>Connexion - EventUp</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -44,8 +44,8 @@ if (isset($_SESSION['success_message'])) {
                     </div>
                 </div>
                 <div class="col text-end">
-                    <span class="text-muted me-2">Don't have an account?</span>
-                    <a href="register.php" class="btn-signup">Sign Up</a>
+                    <span class="text-muted me-2">Vous n'avez pas de compte ?</span>
+                    <a href="register.php" class="btn-signup">S'inscrire</a>
                 </div>
             </div>
         </nav>
@@ -62,8 +62,8 @@ if (isset($_SESSION['success_message'])) {
                             <div class="col-lg-6">
                                 <div class="login-form-wrapper">
                                     <div class="login-header-content">
-                                        <h1>Welcome Back!</h1>
-                                        <p>Sign in to manage your events and keep everything organized</p>
+                                        <h1>Bon retour !</h1>
+                                        <p>Connectez-vous pour gérer vos événements et tout garder organisé</p>
                                     </div>
 
                                     <?php if ($error): ?>
@@ -85,7 +85,7 @@ if (isset($_SESSION['success_message'])) {
                                         <!-- Email Input -->
                                         <div class="form-group">
                                             <label for="email" class="form-label">
-                                                <i class="bi bi-envelope"></i> Email Address
+                                                <i class="bi bi-envelope"></i> Adresse Email
                                             </label>
                                             <input 
                                                 type="email" 
@@ -100,7 +100,7 @@ if (isset($_SESSION['success_message'])) {
                                         <!-- Password Input -->
                                         <div class="form-group">
                                             <label for="password" class="form-label">
-                                                <i class="bi bi-lock"></i> Password
+                                                <i class="bi bi-lock"></i> Mot de passe
                                             </label>
                                             <div class="password-input-wrapper">
                                                 <input 
@@ -108,7 +108,7 @@ if (isset($_SESSION['success_message'])) {
                                                     class="form-control" 
                                                     id="password" 
                                                     name="password"
-                                                    placeholder="Enter your password"
+                                                    placeholder="Entrez votre mot de passe"
                                                     required
                                                 >
                                                 <button type="button" class="password-toggle" id="togglePassword">
@@ -119,14 +119,14 @@ if (isset($_SESSION['success_message'])) {
 
                                         <!-- Submit Button -->
                                         <button type="submit" class="btn-login-submit">
-                                            Sign In
+                                            Se connecter
                                             <i class="bi bi-arrow-right"></i>
                                         </button>
                                     </form>
 
                                     <!-- Sign Up Link -->
                                     <div class="signup-link">
-                                        <p>Don't have an account? <a href="register.php">Create one now</a></p>
+                                        <p>Vous n'avez pas de compte ? <a href="register.php">Créez-en un maintenant</a></p>
                                     </div>
                                 </div>
                             </div>
@@ -138,8 +138,8 @@ if (isset($_SESSION['success_message'])) {
                                         <div class="info-icon">
                                             <i class="bi bi-calendar-check"></i>
                                         </div>
-                                        <h2>Manage Events with Ease</h2>
-                                        <p>Join thousands of organizations using EventUp to streamline their internal event management.</p>
+                                        <h2>Gérez les Événements Facilement</h2>
+                                        <p>Rejoignez des milliers d'organisations utilisant EventUp pour rationaliser leur gestion d'événements internes.</p>
                                         
                                         <div class="features-list">
                                             <div class="feature-item">
@@ -147,8 +147,8 @@ if (isset($_SESSION['success_message'])) {
                                                     <i class="bi bi-check-circle-fill"></i>
                                                 </div>
                                                 <div class="feature-text">
-                                                    <h4>Quick Event Creation</h4>
-                                                    <p>Create and manage events in seconds</p>
+                                                    <h4>Création Rapide d'Événements</h4>
+                                                    <p>Créez et gérez des événements en quelques secondes</p>
                                                 </div>
                                             </div>
                                             <div class="feature-item">
@@ -156,8 +156,8 @@ if (isset($_SESSION['success_message'])) {
                                                     <i class="bi bi-check-circle-fill"></i>
                                                 </div>
                                                 <div class="feature-text">
-                                                    <h4>Real-time Tracking</h4>
-                                                    <p>Monitor RSVPs and attendance live</p>
+                                                    <h4>Suivi en Temps Réel</h4>
+                                                    <p>Surveillez les RSVPs et la participation en direct</p>
                                                 </div>
                                             </div>
                                             <div class="feature-item">
@@ -165,8 +165,8 @@ if (isset($_SESSION['success_message'])) {
                                                     <i class="bi bi-check-circle-fill"></i>
                                                 </div>
                                                 <div class="feature-text">
-                                                    <h4>Team Collaboration</h4>
-                                                    <p>Work seamlessly with your team</p>
+                                                    <h4>Collaboration d'Équipe</h4>
+                                                    <p>Travaillez en harmonie avec votre équipe</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -175,10 +175,10 @@ if (isset($_SESSION['success_message'])) {
                                             <div class="quote-icon">
                                                 <i class="bi bi-quote"></i>
                                             </div>
-                                            <p>"EventUp has transformed how we manage our company events. It's intuitive, powerful, and saves us hours every week."</p>
+                                            <p>"EventUp a transformé notre façon de gérer les événements d'entreprise. C'est intuitif, puissant et nous fait gagner des heures chaque semaine."</p>
                                             <div class="testimonial-author">
-                                                <strong>Sarah Johnson</strong>
-                                                <span>HR Manager, TechCorp</span>
+                                                <strong>Sarah Martin</strong>
+                                                <span>Responsable RH, TechCorp</span>
                                             </div>
                                         </div>
                                     </div>
@@ -226,7 +226,7 @@ if (isset($_SESSION['success_message'])) {
                     alertDiv.className = 'alert alert-danger alert-dismissible fade show';
                     alertDiv.innerHTML = `
                         <i class="bi bi-exclamation-circle"></i>
-                        Please fill in all required fields.
+                        Veuillez remplir tous les champs requis.
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     `;
                     const form = document.querySelector('.login-form');
@@ -244,7 +244,7 @@ if (isset($_SESSION['success_message'])) {
                     alertDiv.className = 'alert alert-danger alert-dismissible fade show';
                     alertDiv.innerHTML = `
                         <i class="bi bi-exclamation-circle"></i>
-                        Please enter a valid email address.
+                        Veuillez entrer une adresse email valide.
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     `;
                     const form = document.querySelector('.login-form');

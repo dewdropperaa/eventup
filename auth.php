@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
 
     if (empty($email) || empty($password)) {
-        $_SESSION['login_error'] = 'Please fill in all fields.';
+        $_SESSION['login_error'] = 'Veuillez remplir tous les champs.';
         header('Location: login.php');
         exit;
     }
@@ -25,13 +25,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: dashboard.php');
             exit;
         } else {
-            $_SESSION['login_error'] = 'Invalid email or password.';
+            $_SESSION['login_error'] = 'Email ou mot de passe invalide.';
             header('Location: login.php');
             exit;
         }
     } catch (PDOException $e) {
         error_log('Login failed: ' . $e->getMessage());
-        $_SESSION['login_error'] = 'An error occurred. Please try again.';
+        $_SESSION['login_error'] = 'Une erreur s\'est produite. Veuillez réessayer.';
         header('Location: login.php');
         exit;
     }

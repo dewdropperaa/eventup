@@ -18,50 +18,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Validate first name
     if (empty($firstName)) {
-        $errors['firstName'] = 'First name is required.';
+        $errors['firstName'] = 'Le prénom est requis.';
     } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName)) {
-        $errors['firstName'] = 'First name can only contain letters and spaces.';
+        $errors['firstName'] = 'Le prénom ne peut contenir que des lettres et des espaces.';
     } elseif (strlen($firstName) < 2 || strlen($firstName) > 50) {
-        $errors['firstName'] = 'First name must be between 2 and 50 characters.';
+        $errors['firstName'] = 'Le prénom doit contenir entre 2 et 50 caractères.';
     }
 
     // Validate last name
     if (empty($lastName)) {
-        $errors['lastName'] = 'Last name is required.';
+        $errors['lastName'] = 'Le nom de famille est requis.';
     } elseif (!preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
-        $errors['lastName'] = 'Last name can only contain letters and spaces.';
+        $errors['lastName'] = 'Le nom de famille ne peut contenir que des lettres et des espaces.';
     } elseif (strlen($lastName) < 2 || strlen($lastName) > 50) {
-        $errors['lastName'] = 'Last name must be between 2 and 50 characters.';
+        $errors['lastName'] = 'Le nom de famille doit contenir entre 2 et 50 caractères.';
     }
 
     // Validate email
     if (empty($email)) {
-        $errors['email'] = 'Email is required.';
+        $errors['email'] = 'L\'email est requis.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors['email'] = 'Invalid email format.';
+        $errors['email'] = 'Format d\'email invalide.';
     } elseif (strlen($email) > 100) {
-        $errors['email'] = 'Email address is too long.';
+        $errors['email'] = 'L\'adresse email est trop longue.';
     }
 
     // Validate password
     if (empty($password)) {
-        $errors['password'] = 'Password is required.';
+        $errors['password'] = 'Le mot de passe est requis.';
     } elseif (strlen($password) < 8) {
-        $errors['password'] = 'Password must be at least 8 characters long.';
+        $errors['password'] = 'Le mot de passe doit contenir au moins 8 caractères.';
     } elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/', $password)) {
-        $errors['password'] = 'Password must contain at least one uppercase letter, one lowercase letter, and one number.';
+        $errors['password'] = 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre.';
     }
 
     // Validate password confirmation
     if (empty($confirmPassword)) {
-        $errors['confirmPassword'] = 'Please confirm your password.';
+        $errors['confirmPassword'] = 'Veuillez confirmer votre mot de passe.';
     } elseif ($password !== $confirmPassword) {
-        $errors['confirmPassword'] = 'Passwords do not match.';
+        $errors['confirmPassword'] = 'Les mots de passe ne correspondent pas.';
     }
 
     // Validate terms agreement
     if (!$agreeTerms) {
-        $errors['agreeTerms'] = 'You must agree to the Terms of Service and Privacy Policy.';
+        $errors['agreeTerms'] = 'Vous devez accepter les Conditions d\'Utilisation et la Politique de Confidentialité.';
     }
 
     // If no validation errors, proceed with database operations
@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$email]);
 
             if ($stmt->fetch()) {
-                $errors['email'] = 'Email already registered.';
+                $errors['email'] = 'Email déjà enregistré.';
             } else {
                 // Combine first and last name
                 $fullName = trim($firstName . ' ' . $lastName);
@@ -93,13 +93,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_email'] = $email;
                 
                 // Redirect to dashboard with success message
-                $_SESSION['success_message'] = 'Registration successful! Welcome to EventUp!';
+                $_SESSION['success_message'] = 'Inscription réussie ! Bienvenue sur EventUp !';
                 header('Location: dashboard.php');
                 exit;
             }
         } catch (PDOException $e) {
             error_log('Registration failed: ' . $e->getMessage());
-            $errors['db'] = 'An error occurred during registration. Please try again.';
+            $errors['db'] = 'Une erreur s\'est produite lors de l\'inscription. Veuillez réessayer.';
         }
     }
 }
@@ -115,30 +115,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
     switch ($field) {
         case 'email':
             if (empty($value)) {
-                $fieldErrors['email'] = 'Email is required.';
+                $fieldErrors['email'] = 'L\'email est requis.';
             } elseif (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                $fieldErrors['email'] = 'Invalid email format.';
+                $fieldErrors['email'] = 'Format d\'email invalide.';
             } else {
                 try {
                     $pdo = getDatabaseConnection();
                     $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
                     $stmt->execute([$value]);
                     if ($stmt->fetch()) {
-                        $fieldErrors['email'] = 'Email already registered.';
+                        $fieldErrors['email'] = 'Email déjà enregistré.';
                     }
                 } catch (PDOException $e) {
-                    $fieldErrors['email'] = 'Unable to validate email.';
+                    $fieldErrors['email'] = 'Impossible de valider l\'email.';
                 }
             }
             break;
             
         case 'password':
             if (empty($value)) {
-                $fieldErrors['password'] = 'Password is required.';
+                $fieldErrors['password'] = 'Le mot de passe est requis.';
             } elseif (strlen($value) < 8) {
-                $fieldErrors['password'] = 'Password must be at least 8 characters long.';
+                $fieldErrors['password'] = 'Le mot de passe doit contenir au moins 8 caractères.';
             } elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/', $value)) {
-                $fieldErrors['password'] = 'Password must contain uppercase, lowercase, and number.';
+                $fieldErrors['password'] = 'Le mot de passe doit contenir une majuscule, une minuscule et un chiffre.';
             }
             break;
     }
@@ -148,11 +148,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - EventUp</title>
+    <title>Inscription - EventUp</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -173,8 +173,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                     </div>
                 </div>
                 <div class="col text-end">
-                    <span class="text-muted me-2">Already have an account?</span>
-                    <a href="login.php" class="btn-login">Log In</a>
+                    <span class="text-muted me-2">Vous avez déjà un compte ?</span>
+                    <a href="login.php" class="btn-login">Se connecter</a>
                 </div>
             </div>
         </nav>
@@ -194,52 +194,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                         <div class="info-icon">
                                             <i class="bi bi-rocket-takeoff"></i>
                                         </div>
-                                        <h2>Start Managing Events Today</h2>
-                                        <p>Join thousands of organizations streamlining their internal events with EventUp.</p>
+                                        <h2>Commencez à Gérer vos Événements Aujourd'hui</h2>
+                                        <p>Rejoignez des milliers d'organisations qui optimisent leurs événements internes avec EventUp.</p>
                                         
                                         <div class="benefits-list">
                                             <div class="benefit-item">
                                                 <div class="benefit-icon">
                                                     <i class="bi bi-check-lg"></i>
                                                 </div>
-                                                <span>One dashboard controls all your events</span>
+                                                <span>Un tableau de bord contrôle tous vos événements</span>
                                             </div>
                                             <div class="benefit-item">
                                                 <div class="benefit-icon">
                                                     <i class="bi bi-check-lg"></i>
                                                 </div>
-                                                <span>Unlimited events and attendees</span>
+                                                <span>Événements et participants illimités</span>
                                             </div>
                                             <div class="benefit-item">
                                                 <div class="benefit-icon">
                                                     <i class="bi bi-check-lg"></i>
                                                 </div>
-                                                <span>24/7 customer support</span>
+                                                <span>Support client 24/7</span>
                                             </div>
                                             <div class="benefit-item">
                                                 <div class="benefit-icon">
                                                     <i class="bi bi-check-lg"></i>
                                                 </div>
-                                                <span>Advanced analytics and insights</span>
+                                                <span>Analyses et aperçus avancés</span>
                                             </div>
                                             <div class="benefit-item">
                                                 <div class="benefit-icon">
                                                     <i class="bi bi-check-lg"></i>
                                                 </div>
-                                                <span>Easy team collaboration</span>
+                                                <span>Collaboration d'équipe facile</span>
                                             </div>
                                         </div>
 
                                         <div class="trust-badge">
                                             <div class="trust-stats">
                                                 <div class="stat-item">
-                                                    <strong>10,000+</strong>
-                                                    <span>Organizations</span>
+                                                    <strong>10 000+</strong>
+                                                    <span>Organisations</span>
                                                 </div>
                                                 <div class="stat-divider"></div>
                                                 <div class="stat-item">
                                                     <strong>500K+</strong>
-                                                    <span>Events</span>
+                                                    <span>Événements</span>
                                                 </div>
                                                 <div class="stat-divider"></div>
                                                 <div class="stat-item">
@@ -256,8 +256,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                             <div class="col-lg-7">
                                 <div class="signup-form-wrapper">
                                     <div class="signup-header-content">
-                                        <h1>Create Your Account</h1>
-                                        <p>Get started with EventUp in just a few minutes</p>
+                                        <h1>Créez Votre Compte</h1>
+                                        <p>Commencez avec EventUp en quelques minutes</p>
                                     </div>
 
                                     <?php if (isset($errors['db'])): ?>
@@ -270,7 +270,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 
                                     <!-- Divider -->
                                     <div class="divider">
-                                        <span>Or sign up with email</span>
+                                        <span>Ou inscrivez-vous avec email</span>
                                     </div>
 
                                     <form class="signup-form" id="signupForm" method="post" novalidate>
@@ -279,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                             <div class="col-md-6">
                                                 <div class="form-group">
                                                     <label for="firstName" class="form-label">
-                                                        <i class="bi bi-person"></i> First Name
+                                                        <i class="bi bi-person"></i> Prénom
                                                     </label>
                                                     <input 
                                                         type="text" 
@@ -287,7 +287,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                                         id="firstName" 
                                                         name="firstName"
                                                         value="<?php echo htmlspecialchars($firstName); ?>"
-                                                        placeholder="John"
+                                                        placeholder="Jean"
                                                         required
                                                     >
                                                     <?php if (isset($errors['firstName'])): ?>
@@ -300,7 +300,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                             <div class="col-md-6">
                                                 <div class="form-group">
                                                     <label for="lastName" class="form-label">
-                                                        <i class="bi bi-person"></i> Last Name
+                                                        <i class="bi bi-person"></i> Nom
                                                     </label>
                                                     <input 
                                                         type="text" 
@@ -308,7 +308,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                                         id="lastName" 
                                                         name="lastName"
                                                         value="<?php echo htmlspecialchars($lastName); ?>"
-                                                        placeholder="Doe"
+                                                        placeholder="Dupont"
                                                         required
                                                     >
                                                     <?php if (isset($errors['lastName'])): ?>
@@ -323,7 +323,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                         <!-- Email Input -->
                                         <div class="form-group">
                                             <label for="email" class="form-label">
-                                                <i class="bi bi-envelope"></i> Work Email
+                                                <i class="bi bi-envelope"></i> Email Professionnel
                                             </label>
                                             <input 
                                                 type="email" 
@@ -331,7 +331,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                                 id="email" 
                                                 name="email"
                                                 value="<?php echo htmlspecialchars($email); ?>"
-                                                placeholder="you@company.com"
+                                                placeholder="vous@entreprise.com"
                                                 required
                                             >
                                             <?php if (isset($errors['email'])): ?>
@@ -344,7 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                         <!-- Password Input -->
                                         <div class="form-group">
                                             <label for="password" class="form-label">
-                                                <i class="bi bi-lock"></i> Password
+                                                <i class="bi bi-lock"></i> Mot de passe
                                             </label>
                                             <div class="password-input-wrapper">
                                                 <input 
@@ -352,7 +352,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                                     class="form-control <?php echo isset($errors['password']) ? 'is-invalid' : ''; ?>" 
                                                     id="password" 
                                                     name="password"
-                                                    placeholder="Create a strong password"
+                                                    placeholder="Créez un mot de passe fort"
                                                     required
                                                 >
                                                 <button type="button" class="password-toggle" id="togglePassword">
@@ -368,14 +368,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                                 <div class="strength-bar">
                                                     <div class="strength-progress"></div>
                                                 </div>
-                                                <span class="strength-text">Password strength: <strong>-</strong></span>
+                                                <span class="strength-text">Force du mot de passe : <strong>-</strong></span>
                                             </div>
                                         </div>
 
                                         <!-- Confirm Password -->
                                         <div class="form-group">
                                             <label for="confirmPassword" class="form-label">
-                                                <i class="bi bi-lock-fill"></i> Confirm Password
+                                                <i class="bi bi-lock-fill"></i> Confirmer le mot de passe
                                             </label>
                                             <div class="password-input-wrapper">
                                                 <input 
@@ -383,7 +383,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                                     class="form-control <?php echo isset($errors['confirmPassword']) ? 'is-invalid' : ''; ?>" 
                                                     id="confirmPassword" 
                                                     name="confirmPassword"
-                                                    placeholder="Re-enter your password"
+                                                    placeholder="Réentrez votre mot de passe"
                                                     required
                                                 >
                                                 <button type="button" class="password-toggle" id="toggleConfirmPassword">
@@ -402,7 +402,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                                             <div class="form-check">
                                                 <input class="form-check-input <?php echo isset($errors['agreeTerms']) ? 'is-invalid' : ''; ?>" type="checkbox" id="agreeTerms" name="agreeTerms" required>
                                                 <label class="form-check-label" for="agreeTerms">
-                                                    I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+                                                    J'accepte les <a href="#">Conditions d'Utilisation</a> et la <a href="#">Politique de Confidentialité</a>
                                                 </label>
                                                 <?php if (isset($errors['agreeTerms'])): ?>
                                                     <div class="invalid-feedback d-block">
@@ -414,14 +414,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 
                                         <!-- Submit Button -->
                                         <button type="submit" class="btn-signup-submit">
-                                            <span id="submitText">Create Account</span>
+                                            <span id="submitText">Créer un Compte</span>
                                             <i class="bi bi-arrow-right" id="submitIcon"></i>
                                         </button>
                                     </form>
 
                                     <!-- Login Link -->
                                     <div class="login-link">
-                                        <p>Already have an account? <a href="login.php">Log in here</a></p>
+                                        <p>Vous avez déjà un compte ? <a href="login.php">Connectez-vous ici</a></p>
                                     </div>
                                 </div>
                             </div>
@@ -488,20 +488,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             switch(strength) {
                 case 0:
                 case 1:
-                    label = 'Weak';
+                    label = 'Faible';
                     color = '#dc3545';
                     break;
                 case 2:
                 case 3:
-                    label = 'Fair';
+                    label = 'Moyen';
                     color = '#ffc107';
                     break;
                 case 4:
-                    label = 'Good';
+                    label = 'Bon';
                     color = '#17a2b8';
                     break;
                 case 5:
-                    label = 'Strong';
+                    label = 'Fort';
                     color = '#28a745';
                     break;
             }
@@ -530,12 +530,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             
             // Client-side validation
             if (password !== confirmPassword) {
-                alert('Passwords do not match!');
+                alert('Les mots de passe ne correspondent pas !');
                 return;
             }
             
             if (!agreeTerms) {
-                alert('You must agree to the Terms of Service and Privacy Policy.');
+                alert('Vous devez accepter les Conditions d\'Utilisation et la Politique de Confidentialité.');
                 return;
             }
             
@@ -545,7 +545,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             const submitIcon = document.getElementById('submitIcon');
             
             submitBtn.disabled = true;
-            submitText.textContent = 'Creating Account...';
+            submitText.textContent = 'Création du compte...';
             submitIcon.className = 'bi bi-arrow-repeat';
             submitIcon.style.animation = 'spin 1s linear infinite';
             

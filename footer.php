@@ -5,7 +5,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const notificationsDropdown = document.getElementById('notificationsDropdown');
-    if (!notificationsDropdown) return; // User not logged in
+    if (!notificationsDropdown) return;
     
     const notificationMenu = document.getElementById('notification-menu');
     const notificationBadge = notificationsDropdown.querySelector('.badge');
@@ -38,7 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (notifications.length === 0) {
             notificationMenu.innerHTML += '<li class="px-3 py-2 text-muted small">No new notifications</li>';
-            // Remove badge if exists
             const badge = notificationsDropdown.querySelector('.badge');
             if (badge) {
                 badge.remove();
@@ -53,7 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     </li>`;
                 notificationMenu.innerHTML += notifItem;
             });
-            // Create or update badge
             let badge = notificationsDropdown.querySelector('.badge');
             if (!badge) {
                 badge = document.createElement('span');
@@ -195,7 +193,6 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
-    // AJAX for permission switches
     $('.permission-switch').on('change', function() {
         const checkbox = $(this);
         const eventId = checkbox.data('event-id');
@@ -220,13 +217,11 @@ $(document).ready(function() {
                     toastEl.find('.toast-body').text(response.message || 'Permission updated successfully.');
                     toast.show();
                 } else {
-                    // Optionally, revert the switch and show an error
                     checkbox.prop('checked', !isAllowed);
                     alert('Failed to update permission: ' + (response.message || 'Unknown error'));
                 }
             },
             error: function() {
-                // Revert the switch and show a generic error
                 checkbox.prop('checked', !isAllowed);
                 alert('An error occurred while communicating with the server.');
             }

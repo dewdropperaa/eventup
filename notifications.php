@@ -45,7 +45,23 @@ function markAllNotificationsRead($user_id) {
         $pdo = getDatabaseConnection();
         $stmt = $pdo->prepare("UPDATE notifications SET is_read = 1 WHERE user_id = :user_id AND is_read = 0");
         $stmt->execute([':user_id' => $user_id]);
+        return true;
     } catch (PDOException $e) {
         error_log('markAllNotificationsRead error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+function markNotificationRead($notification_id, $user_id) {
+    try {
+        $pdo = getDatabaseConnection();
+        $stmt = $pdo->prepare("UPDATE notifications SET is_read = 1 WHERE id = :id AND user_id = :user_id");
+        return $stmt->execute([
+            ':id' => $notification_id,
+            ':user_id' => $user_id
+        ]);
+    } catch (PDOException $e) {
+        error_log('markNotificationRead error: ' . $e->getMessage());
+        return false;
     }
 }

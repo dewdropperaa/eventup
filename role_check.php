@@ -1,15 +1,7 @@
 <?php
-/**
- * Role-Based Access Control Helper
- * Provides functions to check user roles and enforce access control
- */
 
 require_once 'database.php';
 
-/**
- * Check if user is logged in
- * Redirects to login if not
- */
 function requireLogin() {
     if (!isset($_SESSION['user_id'])) {
         header('Location: login.php');
@@ -17,10 +9,6 @@ function requireLogin() {
     }
 }
 
-/**
- * Check if user is an organizer or admin for any event
- * Returns true if user has at least one organizer/admin role
- */
 function isOrganizer($user_id = null) {
     if ($user_id === null) {
         $user_id = $_SESSION['user_id'] ?? null;
@@ -46,10 +34,6 @@ function isOrganizer($user_id = null) {
     }
 }
 
-/**
- * Check if user is an admin for a specific event
- * Returns true if user is admin of the event
- */
 function isEventAdmin($user_id, $event_id) {
     try {
         $pdo = getDatabaseConnection();
@@ -67,10 +51,6 @@ function isEventAdmin($user_id, $event_id) {
     }
 }
 
-/**
- * Check if user has organizer or admin role for a specific event
- * Returns true if user is organizer or admin of the event
- */
 function isEventOrganizer($user_id, $event_id) {
     try {
         $pdo = getDatabaseConnection();
@@ -88,10 +68,6 @@ function isEventOrganizer($user_id, $event_id) {
     }
 }
 
-/**
- * Get user's role for a specific event
- * Returns 'admin', 'organizer', or null
- */
 function getUserEventRole($user_id, $event_id) {
     try {
         $pdo = getDatabaseConnection();
@@ -109,10 +85,6 @@ function getUserEventRole($user_id, $event_id) {
     }
 }
 
-/**
- * Require organizer/admin role for a specific event
- * Redirects to organizer dashboard if user doesn't have permission
- */
 function requireEventOrganizer($user_id, $event_id) {
     if (!isEventOrganizer($user_id, $event_id)) {
         header('Location: organizer_dashboard.php');
@@ -120,10 +92,6 @@ function requireEventOrganizer($user_id, $event_id) {
     }
 }
 
-/**
- * Require admin role for a specific event
- * Redirects to organizer dashboard if user is not admin
- */
 function requireEventAdmin($user_id, $event_id) {
     if (!isEventAdmin($user_id, $event_id)) {
         header('Location: organizer_dashboard.php');
@@ -131,10 +99,6 @@ function requireEventAdmin($user_id, $event_id) {
     }
 }
 
-/**
- * Require organizer/admin role for any event
- * Redirects to dashboard if user is not an organizer
- */
 function requireOrganizer() {
     requireLogin();
     if (!isOrganizer($_SESSION['user_id'])) {
@@ -143,28 +107,18 @@ function requireOrganizer() {
     }
 }
 
-/**
- * Check if a user has a specific permission for an event.
- *
- * @param int $event_id The ID of the event.
- * @param int $user_id The ID of the user.
- * @param string $permission_name The name of the permission to check.
- * @return bool True if the user has the permission, false otherwise.
- */
 function canDo($event_id, $user_id, $permission_name) {
     try {
         $pdo = getDatabaseConnection();
 
-        // First, check if the user is the event owner (created_by).
         $stmt = $pdo->prepare('SELECT created_by FROM events WHERE id = ?');
         $stmt->execute([$event_id]);
         $event = $stmt->fetch();
 
         if ($event && $event['created_by'] == $user_id) {
-            return true; // Event owner has all permissions.
+            return true;
         }
 
-        // If not the owner, check the event_permissions table.
         $stmt = $pdo->prepare(
             'SELECT is_allowed FROM event_permissions WHERE event_id = ? AND user_id = ? AND permission_name = ?'
         );
@@ -175,29 +129,18 @@ function canDo($event_id, $user_id, $permission_name) {
             return (bool)$permission['is_allowed'];
         }
 
-        // Default to not allowed if no specific permission is set.
         return false;
 
     } catch (PDOException $e) {
         error_log('Error in canDo() function: ' . $e->getMessage());
-        return false; // Fail safely
+        return false;
     }
 }
 
-/**
- * Check if a user has a specific permission based on their role.
- * This function checks the role-based permissions system.
- *
- * @param int $user_id The ID of the user.
- * @param string $permission_name The name of the permission to check.
- * @param string $context The context (global, department, event).
- * @return bool True if the user has the permission, false otherwise.
- */
 function hasRolePermission($user_id, $permission_name, $context = 'event') {
     try {
         $pdo = getDatabaseConnection();
 
-        // Get user's role from user_organizations table
         $stmt = $pdo->prepare("
             SELECT uo.role_id, r.name as role_name, rp.granted, rp.permission_name
             FROM user_organizations uo
@@ -209,15 +152,13 @@ function hasRolePermission($user_id, $permission_name, $context = 'event') {
         $result = $stmt->fetch();
 
         if (!$result || !$result['role_id']) {
-            return false; // No role assigned
+            return false;
         }
 
-        // Check if permission is granted
         if ($result['granted'] === null) {
-            return false; // Permission not set for this role
+            return false;
         }
 
-        // Check scope permission
         $stmt = $pdo->prepare("
             SELECT granted 
             FROM role_permissions 
@@ -243,16 +184,10 @@ function hasRolePermission($user_id, $permission_name, $context = 'event') {
 
     } catch (PDOException $e) {
         error_log('Error in hasRolePermission() function: ' . $e->getMessage());
-        return false; // Fail safely
+        return false;
     }
 }
 
-/**
- * Get user's role name
- *
- * @param int $user_id The ID of the user.
- * @return string|null The role name or null if no role.
- */
 function getUserRole($user_id) {
     try {
         $pdo = getDatabaseConnection();
@@ -271,12 +206,6 @@ function getUserRole($user_id) {
     }
 }
 
-/**
- * Check if user is admin (system-wide)
- *
- * @param int $user_id The ID of the user.
- * @return bool True if user is admin, false otherwise.
- */
 function isSystemAdmin($user_id = null) {
     if ($user_id === null) {
         $user_id = $_SESSION['user_id'] ?? null;
@@ -303,30 +232,14 @@ function isSystemAdmin($user_id = null) {
     }
 }
 
-/**
- * Enhanced canDo function that combines event permissions and role permissions
- *
- * @param int $event_id The ID of the event.
- * @param int $user_id The ID of the user.
- * @param string $permission_name The name of the permission to check.
- * @return bool True if the user has the permission, false otherwise.
- */
 function canDoEnhanced($event_id, $user_id, $permission_name) {
-    // First check event-specific permissions (existing logic)
     if (canDo($event_id, $user_id, $permission_name)) {
         return true;
     }
     
-    // Then check role-based permissions
     return hasRolePermission($user_id, $permission_name, 'event');
 }
 
-/**
- * Get all permissions for a user's role
- *
- * @param int $user_id The ID of the user.
- * @return array Array of permissions with granted status.
- */
 function getUserRolePermissions($user_id) {
     try {
         $pdo = getDatabaseConnection();

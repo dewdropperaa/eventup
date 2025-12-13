@@ -1,8 +1,4 @@
 <?php
-/**
- * Organizers Management Page
- * Allows event admins to manage organizers for their event
- */
 
 session_start();
 
@@ -10,7 +6,7 @@ require 'database.php';
 require_once 'role_check.php';
 require_once 'notifications.php';
 
-// Check if user is logged in
+
 requireLogin();
 
 // Get event ID from URL
@@ -27,7 +23,7 @@ if (!isEventAdmin($_SESSION['user_id'], $eventId)) {
     exit;
 }
 
-// Get database connection
+
 $pdo = getDatabaseConnection();
 
 // Initialize variables
@@ -64,7 +60,7 @@ try {
     $isEventOrganizer = isEventOrganizer($_SESSION['user_id'], $eventId);
 } catch (Exception $e) {
     error_log('Error fetching event: ' . $e->getMessage());
-    $error = 'Error loading event.';
+    $error = 'Erreur de chargement de l\'événement.';
 }
 
 // Fetch organizers
@@ -132,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 ');
                 $stmt->execute([$organizerId, $eventId]);
                 
-                $success = 'Organizer removed successfully.';
+                $success = 'Organisateur supprimé avec succès.';
                 
                 // Refresh organizers list
                 $stmt = $pdo->prepare('
@@ -146,14 +142,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $stmt->execute([$eventId]);
                 $organizers = $stmt->fetchAll();
             } else {
-                $error = 'Cannot remove the event owner.';
+                $error = 'Impossible de supprimer le propriétaire de l\'événement.';
             }
         } catch (PDOException $e) {
             error_log('Error removing organizer: ' . $e->getMessage());
-            $error = 'Error removing organizer. Please try again.';
+            $error = 'Erreur lors de la suppression de l\'organisateur. Veuillez réessayer.';
         }
     } else {
-        $error = 'Cannot remove the event owner.';
+        $error = 'Impossible de supprimer le propriétaire de l\'événement.';
     }
 }
 
@@ -169,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             ');
             $stmt->execute([$invitationId, $eventId]);
             
-            $success = 'Invitation cancelled successfully.';
+            $success = 'Invitation annulée avec succès.';
             
             // Refresh pending invitations
             $stmt = $pdo->prepare('
@@ -182,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $invitationsPending = $stmt->fetchAll();
         } catch (PDOException $e) {
             error_log('Error cancelling invitation: ' . $e->getMessage());
-            $error = 'Error cancelling invitation. Please try again.';
+            $error = 'Erreur lors de l\'annulation de l\'invitation. Veuillez réessayer.';
         }
     }
 }
@@ -192,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $emails = isset($_POST['emails']) ? trim($_POST['emails']) : '';
     
     if (empty($emails)) {
-        $error = 'Please enter at least one email address.';
+        $error = 'Veuillez saisir au moins une adresse e-mail.';
     } else {
         // Parse emails (comma or newline separated)
         $email_list = preg_split('/[\s,]+/', $emails, -1, PREG_SPLIT_NO_EMPTY);
@@ -208,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             foreach ($email_list as $email) {
                 // Validate email format
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $errors[] = "Invalid email format: " . htmlspecialchars($email);
+                    $errors[] = "Format d\'e-mail invalide : " . htmlspecialchars($email);
                     continue;
                 }
                 
@@ -229,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     ]);
                     
                     if ($stmt->fetch()) {
-                        $errors[] = htmlspecialchars($email) . " already has a role for this event.";
+                        $errors[] = htmlspecialchars($email) . " a déjà un rôle pour cet événement.";
                     } else {
                         // Add user as organizer
                         $stmt = $pdo->prepare("
@@ -255,7 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         $invited_count++;
 
                         // Send in-app notification to existing user
-                        $msg = "You have been added as an organizer for the event '" . $event['titre'] . "'.";
+                        $msg = "Vous avez été ajouté comme organisateur pour l\'événement '" . $event['titre'] . "'.";
                         createNotification($user['id'], 'Organizer invitation', $msg, $eventId);
                     }
                 } else {
@@ -282,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $pdo->commit();
             
             if ($invited_count > 0) {
-                $success = $invited_count . " invitations sent successfully!";
+                $success = $invited_count . " invitations envoyées avec succès!";
             }
             
             if (!empty($errors)) {
@@ -311,325 +307,776 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $invitationsPending = $stmt->fetchAll();
             
         } catch (PDOException $e) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             error_log("Invitation error: " . $e->getMessage());
-            $error = 'An error occurred while sending invitations.';
+            $error = 'Une erreur est survenue lors de l\'envoi des invitations.';
         }
     }
 }
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Organizers Management - EventUp</title>
+    <title>EventUp - Gestion des Organisateurs</title>
+    
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
     <style>
-        body {
-            background-color: #f8f9fa;
-            padding-top: 20px;
-        }
-        
-        .page-header {
-            margin-bottom: 30px;
-        }
-        
-        .page-header h1 {
-            color: #1B5E52;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-        
-        .breadcrumb-custom {
-            background-color: transparent;
-            padding: 0;
-            margin-bottom: 20px;
-        }
-        
-        .breadcrumb-custom a {
-            color: #D94A00;
-            text-decoration: none;
-        }
-        
-        .breadcrumb-custom a:hover {
-            text-decoration: underline;
-        }
-        
-        .nav-tabs {
-            border-bottom: 2px solid #e1e8ed;
-            margin-bottom: 30px;
-        }
-        
-        .nav-tabs .nav-link {
-            color: #657786;
-            border: none;
-            border-bottom: 3px solid transparent;
-            font-weight: 600;
-            padding: 12px 20px;
-            transition: all 0.3s ease;
-        }
-        
-        .nav-tabs .nav-link:hover {
-            color: #D94A00;
-            border-bottom-color: #D94A00;
-        }
-        
-        .nav-tabs .nav-link.active {
-            color: #D94A00;
-            border-bottom-color: #D94A00;
-            background-color: transparent;
-        }
-        
-        .card {
-            border: 1px solid #e1e8ed;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            margin-bottom: 20px;
-        }
-        
-        .card-header {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #e1e8ed;
-            padding: 20px;
-            border-radius: 12px 12px 0 0;
-        }
-        
-        .card-header h5 {
-            color: #1B5E52;
-            font-weight: 700;
-            margin: 0;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #D94A00, #ff6b2c);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #ff6b2c, #D94A00);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(217, 74, 0, 0.3);
-        }
-        
-        .btn-outline-primary {
-            color: #D94A00;
-            border-color: #D94A00;
-            border-radius: 8px;
-        }
-        
-        .btn-outline-primary:hover {
-            background-color: #D94A00;
-            border-color: #D94A00;
-        }
-        
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 13px;
-        }
-        
-        .organizer-card {
-            background: white;
-            border: 1px solid #e1e8ed;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .organizer-card:hover {
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-            transform: translateY(-2px);
-        }
-        
-        .organizer-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex: 1;
-        }
-        
-        .organizer-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #D94A00, #ff6b2c);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 18px;
-        }
-        
-        .organizer-details h6 {
-            margin: 0;
-            color: #2c3e50;
-            font-weight: 600;
-        }
-        
-        .organizer-details p {
-            margin: 0;
-            color: #657786;
-            font-size: 13px;
-        }
-        
-        .role-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 4px;
-        }
-        
-        .role-admin {
-            background-color: rgba(217, 74, 0, 0.15);
-            color: #D94A00;
-        }
-        
-        .role-organizer {
-            background-color: rgba(27, 94, 82, 0.15);
-            color: #1B5E52;
-        }
-        
-        .invitation-card {
-            background: white;
-            border: 1px solid #e1e8ed;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .invitation-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background-color: #fff3e0;
-            color: #FFD700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            margin-right: 15px;
-        }
-        
-        .invitation-details {
-            flex: 1;
-        }
-        
-        .invitation-details p {
-            margin: 0;
-            color: #2c3e50;
-            font-weight: 500;
-        }
-        
-        .invitation-details small {
-            color: #657786;
-        }
-        
-        .form-control, .form-select {
-            border-radius: 8px;
-            border: 1px solid #e1e8ed;
-            padding: 10px 14px;
-        }
-        
-        .form-control:focus, .form-select:focus {
-            border-color: #D94A00;
-            box-shadow: 0 0 0 3px rgba(217, 74, 0, 0.1);
-        }
-        
-        .alert {
-            border-radius: 8px;
-            border: none;
-            margin-bottom: 20px;
-        }
-        
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .alert-danger {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #657786;
-        }
-        
-        .empty-state i {
-            font-size: 48px;
-            color: #e1e8ed;
-            margin-bottom: 15px;
-        }
-        
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-box {
-            background: white;
-            border: 1px solid #e1e8ed;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 32px;
-            font-weight: 700;
-            color: #D94A00;
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            color: #657786;
-            font-size: 14px;
-            font-weight: 500;
-        }
+:root {
+    --primary-orange: #D94A00;
+    --primary-teal: #1B5E52;
+    --light-orange: #ff6b2c;
+    --light-teal: #267061;
+    --warning-yellow: #FFD700;
+    --info-blue: #4A90E2;
+    --success-green: #2ed573;
+    --text-dark: #2c3e50;
+    --text-muted: #657786;
+    --bg-light: #f5f7fa;
+    --border-color: #e1e8ed;
+}
+
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    padding-top: 76px;
+}
+
+
+.navbar {
+    height: 76px;
+    backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    border-bottom: 1px solid var(--border-color);
+}
+
+
+.logo-icon {
+    width: 92px;
+    height: 92px;
+    background: transparent;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 22px;
+}
+
+
+.brand-text {
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--primary-teal);
+    letter-spacing: -0.5px;
+}
+
+
+.notification-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-light);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 20px;
+    color: var(--text-dark);
+}
+
+
+.notification-btn:hover {
+    background: var(--primary-orange);
+    color: white;
+    transform: scale(1.05);
+}
+
+
+.notification-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--primary-orange);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+}
+
+
+.admin-profile-btn {
+    display: flex;
+    align-items: center;
+    background: transparent;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+
+.admin-profile-btn:hover {
+    background: var(--bg-light);
+}
+
+
+.admin-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-orange), var(--light-orange));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+
+.sidebar {
+    position: fixed;
+    top: 76px;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 0;
+    background: white;
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+}
+
+
+.sidebar-sticky {
+    position: sticky;
+    top: 0;
+}
+
+
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+    margin: 4px 0;
+}
+
+
+.sidebar .nav-link i {
+    font-size: 20px;
+    width: 24px;
+}
+
+
+.sidebar .nav-link:hover {
+    background: linear-gradient(90deg, rgba(217, 74, 0, 0.05), transparent);
+    color: var(--primary-orange);
+}
+
+
+.sidebar .nav-link.active {
+    background: linear-gradient(90deg, rgba(217, 74, 0, 0.1), transparent);
+    color: var(--primary-orange);
+    border-left-color: var(--primary-orange);
+}
+
+
+.main-content {
+    padding-top: 32px;
+    padding-bottom: 48px;
+}
+
+
+.page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--primary-teal);
+    margin-bottom: 0;
+}
+
+
+.page-header {
+    margin-bottom: 32px;
+}
+
+.page-header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--primary-teal);
+    margin-bottom: 8px;
+}
+
+.page-header p {
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+.breadcrumb-custom {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.breadcrumb-custom a {
+    color: var(--primary-orange);
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.breadcrumb-custom a:hover {
+    color: var(--light-orange);
+}
+
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.stat-box {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.stat-box:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.stat-number {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--primary-orange);
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+
+.nav-tabs {
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 32px;
+}
+
+
+.nav-tabs .nav-link {
+    color: var(--text-muted);
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 12px 24px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    background: transparent;
+}
+
+
+.nav-tabs .nav-link:hover {
+    color: var(--primary-orange);
+    border-color: transparent;
+    background: transparent;
+}
+
+
+.nav-tabs .nav-link.active {
+    color: var(--primary-orange);
+    border-color: transparent transparent var(--primary-orange) transparent;
+    background-color: transparent;
+}
+
+
+.nav-tabs .nav-link i {
+    font-size: 18px;
+}
+
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-orange), var(--light-orange));
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--light-orange), var(--primary-orange));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(217, 74, 0, 0.3);
+}
+
+
+.btn-outline-primary {
+    color: var(--primary-orange);
+    border-color: var(--primary-orange);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+
+.btn-outline-primary:hover {
+    background: var(--primary-orange);
+    border-color: var(--primary-orange);
+    color: white;
+}
+
+
+.btn-outline-secondary {
+    color: var(--text-muted);
+    border-color: var(--border-color);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+
+.btn-outline-secondary:hover {
+    background: var(--bg-light);
+    border-color: var(--text-muted);
+    color: var(--text-dark);
+}
+
+
+.btn-sm {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+
+.btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+
+.btn-outline-danger:hover {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+
+.badge {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+
+.badge-success {
+    background: rgba(46, 213, 115, 0.15);
+    color: #2ed573;
+}
+
+
+.badge-warning {
+    background: rgba(255, 215, 0, 0.2);
+    color: #d4a000;
+}
+
+
+.badge-danger {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+}
+
+
+.badge-secondary {
+    background: rgba(108, 117, 125, 0.15);
+    color: #6c757d;
+}
+
+
+.role-admin {
+    background: rgba(217, 74, 0, 0.15);
+    color: var(--primary-orange);
+}
+
+
+.role-organizer {
+    background: rgba(27, 94, 82, 0.15);
+    color: var(--primary-teal);
+}
+
+
+.role-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+
+.card {
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+}
+
+
+.card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+
+.card-header {
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    padding: 20px 24px;
+    border-radius: 16px 16px 0 0 !important;
+}
+
+
+.card-header h5 {
+    font-weight: 700;
+    color: var(--primary-teal);
+    margin-bottom: 0;
+}
+
+
+.card-body {
+    padding: 24px;
+}
+
+
+.organizer-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+
+.organizer-card:hover {
+    background: var(--bg-light);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+
+.organizer-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+}
+
+
+.organizer-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-orange), var(--light-orange));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+
+.organizer-details h6 {
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+}
+
+
+.organizer-details p {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+
+.invitation-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+
+.invitation-card:hover {
+    background: var(--bg-light);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+
+.invitation-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--info-blue), #357ABD);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+    margin-right: 16px;
+}
+
+
+.invitation-details p {
+    color: var(--text-dark);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+
+.invitation-details small {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
+}
+
+
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+
+.empty-state p {
+    font-size: 16px;
+    margin-bottom: 0;
+}
+
+
+.form-label {
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+
+.form-control,
+.form-select {
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    padding: 10px 14px;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-orange);
+    box-shadow: 0 0 0 3px rgba(217, 74, 0, 0.1);
+    outline: none;
+}
+
+
+.form-text {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+
+.alert {
+    border: none;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+}
+
+
+.alert-success {
+    background: rgba(46, 213, 115, 0.1);
+    color: #2ed573;
+    border-left: 4px solid #2ed573;
+}
+
+
+.alert-danger {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    border-left: 4px solid #dc3545;
+}
+
+
+.alert-dismissible .btn-close {
+    color: currentColor;
+    opacity: 0.7;
+}
+
+
+.alert-dismissible .btn-close:hover {
+    opacity: 1;
+}
+
+
+@media (max-width: 991px) {
+    .sidebar {
+        width: 70px;
+    }
+    
+    .sidebar .nav-link span {
+        display: none;
+    }
+    
+    .sidebar .nav-link {
+        justify-content: center;
+        padding: 12px 8px;
+    }
+}
+
+
+@media (max-width: 767px) {
+    body {
+        padding-top: 64px;
+    }
+    
+    .organizer-card,
+    .invitation-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .organizer-card > div:last-child,
+    .invitation-card > form {
+        width: 100%;
+        margin-top: 16px;
+    }
+    
+    .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .page-header h1 {
+        font-size: 24px;
+    }
+}
     </style>
 </head>
 <body>
-    <?php include 'event_header.php'; ?>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white fixed-top shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center" href="event_details.php?id=<?php echo $eventId; ?>">
+                <div class="logo-icon me-2">
+                    <img src="assets/EventUp_logo.png" alt="EventUp Logo" style="width: 100%; height: 100%; object-fit: contain;">
+                </div>
+                <span class="brand-text">EventUp</span>
+            </a>
+            
+            <div class="d-flex align-items-center ms-auto">
+                <div class="dropdown me-3">
+                    <div class="notification-btn position-relative" data-bs-toggle="dropdown" style="cursor: pointer;">
+                        <i class="bi bi-bell"></i>
+                        <span class="notification-badge" id="notificationCount"><?php echo $unreadCount; ?></span>
+                    </div>
+                    <ul class="dropdown-menu dropdown-menu-end" id="notificationDropdown" style="width: 350px; max-height: 400px; overflow-y: auto;">
+                        <li class="dropdown-header d-flex justify-content-between align-items-center">
+                            <span>Notifications</span>
+                            <a href="#" class="text-decoration-none" onclick="markAllAsRead()">Tout marquer comme lu</a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li id="notificationList">
+                            <div class="text-center p-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Chargement...</span>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="dropdown">
+                    <button class="btn admin-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <div class="admin-avatar me-2"><?php echo strtoupper(substr($_SESSION['user_nom'] ?? 'A', 0, 1)); ?></div>
+                        <span class="d-none d-md-inline"><?php echo htmlspecialchars($_SESSION['user_nom'] ?? 'Admin'); ?></span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="dashboard.php"><i class="bi bi-house me-2"></i>Tableau de bord</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Profil</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Paramètres</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
     
-    <div class="container-fluid mt-4">
+    <div class="container-fluid">
         <div class="row">
             <?php include 'event_nav.php'; ?>
             
-            <div class="col-lg-9">
-                <!-- Page Header -->
+            <main class="col-lg-9 px-md-4 main-content">
                 <div class="page-header">
-                    <div class="breadcrumb-custom">
-                        <a href="index.php"><i class="bi bi-house"></i> Home</a>
-                        <span> / </span>
-                        <a href="event_details.php?id=<?php echo $eventId; ?>">Event Details</a>
-                        <span> / </span>
-                        <span>Organizers Management</span>
-                    </div>
-                    <h1><i class="bi bi-people"></i> Organizers Management</h1>
-                    <p class="text-muted">Manage organizers for: <strong><?php echo htmlspecialchars($event['titre']); ?></strong></p>
+                   
+                    <h1><i class="bi bi-people"></i> Gestion des Organisateurs</h1>
+                    <p>Gérer les organisateurs pour : <strong><?php echo htmlspecialchars($event['titre']); ?></strong></p>
                 </div>
         
-        <!-- Alerts -->
         <?php if (!empty($success)): ?>
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 <i class="bi bi-check-circle me-2"></i>
@@ -646,58 +1093,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             </div>
         <?php endif; ?>
         
-        <!-- Statistics -->
         <div class="stats-row">
             <div class="stat-box">
                 <div class="stat-number"><?php echo count($organizers); ?></div>
-                <div class="stat-label">Total Organizers</div>
+                <div class="stat-label">Total des Organisateurs</div>
             </div>
             <div class="stat-box">
                 <div class="stat-number"><?php echo count(array_filter($organizers, fn($o) => $o['role'] === 'admin')); ?></div>
-                <div class="stat-label">Administrators</div>
+                <div class="stat-label">Administrateurs</div>
             </div>
             <div class="stat-box">
                 <div class="stat-number"><?php echo count(array_filter($organizers, fn($o) => $o['role'] === 'organizer')); ?></div>
-                <div class="stat-label">Organizers</div>
+                <div class="stat-label">Organisateurs</div>
             </div>
             <div class="stat-box">
                 <div class="stat-number"><?php echo count($invitationsPending); ?></div>
-                <div class="stat-label">Pending Invitations</div>
+                <div class="stat-label">Invitations en attente</div>
             </div>
         </div>
         
-        <!-- Tabs -->
         <ul class="nav nav-tabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="organizers-tab" data-bs-toggle="tab" data-bs-target="#organizers-content" type="button" role="tab">
-                    <i class="bi bi-people me-2"></i>Organizers
+                    <i class="bi bi-people me-2"></i>Organisateurs
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="invitations-tab" data-bs-toggle="tab" data-bs-target="#invitations-content" type="button" role="tab">
-                    <i class="bi bi-envelope me-2"></i>Pending Invitations
+                    <i class="bi bi-envelope me-2"></i>Invitations en attente
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="invite-tab" data-bs-toggle="tab" data-bs-target="#invite-content" type="button" role="tab">
-                    <i class="bi bi-person-plus me-2"></i>Invite New
+                    <i class="bi bi-person-plus me-2"></i>Inviter de nouveaux
                 </button>
             </li>
         </ul>
         
-        <!-- Tab Content -->
         <div class="tab-content">
-            <!-- Organizers Tab -->
             <div class="tab-pane fade show active" id="organizers-content" role="tabpanel">
                 <div class="card">
                     <div class="card-header">
-                        <h5>Current Organizers</h5>
+                        <h5>Organisateurs actuels</h5>
                     </div>
                     <div class="card-body">
                         <?php if (empty($organizers)): ?>
                             <div class="empty-state">
                                 <i class="bi bi-people"></i>
-                                <p>No organizers yet</p>
+                                <p>Aucun organisateur pour le moment</p>
                             </div>
                         <?php else: ?>
                             <?php foreach ($organizers as $organizer): ?>
@@ -716,15 +1159,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                     </div>
                                     <div>
                                         <?php if ($organizer['id'] !== $event['created_by']): ?>
-                                            <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to remove this organizer?');">
+                                            <form method="POST" style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet organisateur?');">
                                                 <input type="hidden" name="action" value="remove_organizer">
                                                 <input type="hidden" name="organizer_id" value="<?php echo $organizer['id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                    <i class="bi bi-trash"></i> Remove
+                                                    <i class="bi bi-trash"></i> Supprimer
                                                 </button>
                                             </form>
                                         <?php else: ?>
-                                            <span class="badge bg-secondary">Event Owner</span>
+                                            <span class="badge badge-secondary">Propriétaire de l\'événement</span>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -734,17 +1177,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 </div>
             </div>
             
-            <!-- Pending Invitations Tab -->
             <div class="tab-pane fade" id="invitations-content" role="tabpanel">
                 <div class="card">
                     <div class="card-header">
-                        <h5>Pending Invitations</h5>
+                        <h5>Invitations en attente</h5>
                     </div>
                     <div class="card-body">
                         <?php if (empty($invitationsPending)): ?>
                             <div class="empty-state">
                                 <i class="bi bi-envelope"></i>
-                                <p>No pending invitations</p>
+                                <p>Aucune invitation en attente</p>
                             </div>
                         <?php else: ?>
                             <?php foreach ($invitationsPending as $invitation): ?>
@@ -756,16 +1198,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                         <div class="invitation-details">
                                             <p><?php echo htmlspecialchars($invitation['email']); ?></p>
                                             <small>
-                                                Sent: <?php echo date('M d, Y H:i', strtotime($invitation['created_at'])); ?>
-                                                | Expires: <?php echo date('M d, Y', strtotime($invitation['token_expiry'])); ?>
+                                                Envoyée : <?php echo date('d M Y H:i', strtotime($invitation['created_at'])); ?>
+                                                | Expire : <?php echo date('d M Y', strtotime($invitation['token_expiry'])); ?>
                                             </small>
                                         </div>
                                     </div>
-                                    <form method="POST" style="display: inline;" onsubmit="return confirm('Cancel this invitation?');">
+                                    <form method="POST" style="display: inline;" onsubmit="return confirm('Annuler cette invitation?');">
                                         <input type="hidden" name="action" value="cancel_invitation">
                                         <input type="hidden" name="invitation_id" value="<?php echo $invitation['id']; ?>">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">
-                                            <i class="bi bi-x"></i> Cancel
+                                            <i class="bi bi-x"></i> Annuler
                                         </button>
                                     </form>
                                 </div>
@@ -775,47 +1217,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 </div>
             </div>
             
-            <!-- Invite New Tab -->
             <div class="tab-pane fade" id="invite-content" role="tabpanel">
                 <div class="card">
                     <div class="card-header">
-                        <h5>Invite New Organizers</h5>
+                        <h5>Inviter de nouveaux organisateurs</h5>
                     </div>
                     <div class="card-body">
                         <form method="POST">
                             <input type="hidden" name="action" value="invite_organizer">
                             
                             <div class="mb-3">
-                                <label for="emails" class="form-label">Email Addresses</label>
+                                <label for="emails" class="form-label">Adresses e-mail</label>
                                 <textarea 
                                     class="form-control" 
                                     id="emails" 
                                     name="emails" 
                                     rows="6" 
-                                    placeholder="Enter email addresses separated by commas or new lines&#10;Example:&#10;john@example.com&#10;jane@example.com&#10;bob@example.com"
+                                    placeholder="Entrez les adresses e-mail séparées par des virgules ou de nouvelles lignes&#10;Exemple :&#10;john@example.com&#10;jane@example.com&#10;bob@example.com"
                                     required
                                 ></textarea>
-                                <small class="form-text text-muted">
-                                    Enter one or more email addresses separated by commas or new lines. 
-                                    Existing users will be added immediately, new users will receive an invitation.
+                                <small class="form-text">
+                                    Entrez une ou plusieurs adresses e-mail séparées par des virgules ou de nouvelles lignes. 
+                                    Les utilisateurs existants seront ajoutés immédiatement, les nouveaux utilisateurs recevront une invitation.
                                 </small>
                             </div>
                             
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-send me-2"></i>Send Invitations
+                                <i class="bi bi-send me-2"></i>Envoyer les invitations
                             </button>
                             <a href="event_details.php?id=<?php echo $eventId; ?>" class="btn btn-outline-secondary">
-                                <i class="bi bi-arrow-left me-2"></i>Back to Event
+                                <i class="bi bi-arrow-left me-2"></i>Retour à l\'événement
                             </a>
                         </form>
                     </div>
                 </div>
             </div>
         </div>
-            </div>
+            </main>
         </div>
     </div>
     
+    <?php require_once 'footer.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

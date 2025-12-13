@@ -5,13 +5,11 @@ require 'database.php';
 
 header('Content-Type: application/json');
 
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['conflict' => false, 'error' => 'Not logged in']);
     exit;
 }
 
-// Get parameters from POST
 $resourceId = isset($_POST['resource_id']) ? (int) $_POST['resource_id'] : 0;
 $dateDebut = isset($_POST['date_debut']) ? trim($_POST['date_debut']) : '';
 $dateFin = isset($_POST['date_fin']) ? trim($_POST['date_fin']) : '';
@@ -21,11 +19,9 @@ if ($resourceId <= 0 || empty($dateDebut) || empty($dateFin)) {
     exit;
 }
 
-// Convert datetime-local format to proper datetime
 $dateDebut = str_replace('T', ' ', $dateDebut) . ':00';
 $dateFin = str_replace('T', ' ', $dateFin) . ':00';
 
-// Validate dates
 $startTime = strtotime($dateDebut);
 $endTime = strtotime($dateFin);
 

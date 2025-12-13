@@ -5,10 +5,8 @@ require 'database.php';
 require_once 'role_check.php';
 require_once 'notifications.php';
 
-// Check if user is logged in
 requireLogin();
 
-// Get event ID from URL
 $eventId = isset($_GET['event_id']) ? (int) $_GET['event_id'] : 0;
 
 if ($eventId <= 0) {
@@ -16,20 +14,28 @@ if ($eventId <= 0) {
     exit;
 }
 
-// Check if user has permission to manage resources
-if (!canDo($eventId, $_SESSION['user_id'], 'can_manage_resources')) {
+// Check if user is event owner or has permission to manage resources
+// Event owners should always have access to resources
+$event = null;
+try {
+    $pdo = getDatabaseConnection();
+    $stmt = $pdo->prepare('SELECT id, titre, created_by FROM events WHERE id = ?');
+    $stmt->execute([$eventId]);
+    $event = $stmt->fetch();
+    
+    if (!$event || ($event['created_by'] != $_SESSION['user_id'] && !canDo($eventId, $_SESSION['user_id'], 'can_manage_resources'))) {
+        header('Location: event_details.php?id=' . $eventId);
+        exit;
+    }
+} catch (Exception $e) {
+    error_log('Error checking event owner: ' . $e->getMessage());
     header('Location: event_details.php?id=' . $eventId);
     exit;
 }
 
-// Get database connection
-$pdo = getDatabaseConnection();
-
-// Initialize variables
 $error = '';
 $success = '';
 
-// Get unread notifications count
 $unreadCount = 0;
 try {
     $unreadNotifications = getUnreadNotifications($_SESSION['user_id']);
@@ -39,7 +45,6 @@ try {
     $unreadCount = 0;
 }
 
-// Fetch event details
 try {
     $stmt = $pdo->prepare('SELECT id, titre, created_by FROM events WHERE id = ?');
     $stmt->execute([$eventId]);
@@ -51,15 +56,13 @@ try {
     }
 } catch (Exception $e) {
     error_log('Error fetching event: ' . $e->getMessage());
-    $error = 'Error loading event.';
+    $error = 'Erreur de chargement de l\'événement.';
 }
 
-// Determine user roles for navigation
 $isEventOwner = isset($_SESSION['user_id']) && $event && $_SESSION['user_id'] == $event['created_by'];
 $isEventAdmin = isEventAdmin($_SESSION['user_id'], $eventId);
 $isEventOrganizer = isEventOrganizer($_SESSION['user_id'], $eventId);
 
-// Fetch resources
 try {
     $stmt = $pdo->prepare('
         SELECT id, nom, type, quantite_totale, description, 
@@ -75,7 +78,6 @@ try {
     error_log('Error fetching resources: ' . $e->getMessage());
 }
 
-// Fetch bookings
 try {
     $stmt = $pdo->prepare('
         SELECT rb.id, rb.resource_id, rb.date_debut, rb.date_fin, 
@@ -92,21 +94,18 @@ try {
     error_log('Error fetching bookings: ' . $e->getMessage());
 }
 
-// Handle resource deletion
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_resource') {
     $resourceId = isset($_POST['resource_id']) ? (int) $_POST['resource_id'] : 0;
     
     if ($resourceId > 0) {
         try {
-            // Check if resource belongs to this event
             $stmt = $pdo->prepare('SELECT id FROM event_resources WHERE id = ? AND event_id = ?');
             $stmt->execute([$resourceId, $eventId]);
             if ($stmt->fetch()) {
                 $stmt = $pdo->prepare('DELETE FROM event_resources WHERE id = ?');
                 $stmt->execute([$resourceId]);
-                $success = 'Resource deleted successfully.';
+                $success = 'Ressource supprimée avec succès.';
                 
-                // Refresh resources
                 $stmt = $pdo->prepare('
                     SELECT id, nom, type, quantite_totale, description, 
                            date_disponibilite_debut, date_disponibilite_fin, 
@@ -125,7 +124,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Handle booking cancellation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'cancel_booking') {
     $bookingId = isset($_POST['booking_id']) ? (int) $_POST['booking_id'] : 0;
     
@@ -133,9 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         try {
             $stmt = $pdo->prepare('UPDATE resource_bookings SET statut = "Annulée" WHERE id = ? AND event_id = ?');
             $stmt->execute([$bookingId, $eventId]);
-            $success = 'Booking cancelled successfully.';
+            $success = 'Réservation annulée avec succès.';
             
-            // Refresh bookings
             $stmt = $pdo->prepare('
                 SELECT rb.id, rb.resource_id, rb.date_debut, rb.date_fin, 
                        rb.statut, rb.notes, u.nom as user_nom, er.nom as resource_nom
@@ -149,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $bookings = $stmt->fetchAll();
         } catch (Exception $e) {
             error_log('Error cancelling booking: ' . $e->getMessage());
-            $error = 'Error cancelling booking.';
+            $error = 'Erreur lors de l\'annulation de la réservation.';
         }
     }
 }
@@ -304,23 +301,6 @@ body {
 /* ===========================
    Sidebar Styles
    ============================ */
-.sidebar {
-    position: fixed;
-    top: 76px;
-    bottom: 0;
-    left: 0;
-    z-index: 100;
-    padding: 24px 0;
-    background: white;
-    border-right: 1px solid var(--border-color);
-    overflow-y: auto;
-}
-
-
-.sidebar-sticky {
-    position: sticky;
-    top: 0;
-}
 
 
 .sidebar .nav-link {
@@ -974,7 +954,6 @@ body {
                             <!-- Resources Grid -->
                             <div class="row g-4">
                                 <?php foreach ($resources as $resource): 
-                                    // Determine icon and color based on type
                                     $iconClass = 'bi-box';
                                     $gradientClass = 'orange-gradient';
                                     
@@ -989,7 +968,6 @@ body {
                                         $gradientClass = 'yellow-gradient';
                                     }
                                     
-                                    // Status badge class
                                     $statusClass = 'badge-success';
                                     if ($resource['statut'] === 'Indisponible') {
                                         $statusClass = 'badge-danger';
@@ -1010,7 +988,7 @@ body {
                                             <div class="resource-details mb-3">
                                                 <small class="text-muted">
                                                     <?php if ($resource['quantite_totale']): ?>
-                                                        <i class="bi bi-box me-1"></i>Quantité: <?php echo (int) $resource['quantite_totale']; ?>
+                                                        <i class="bi bi-box me-1"></i>Quantité : <?php echo (int) $resource['quantite_totale']; ?>
                                                     <?php endif; ?>
                                                     <?php if ($resource['description']): ?>
                                                         <br><i class="bi bi-info-circle me-1"></i><?php echo htmlspecialchars(substr($resource['description'], 0, 60)); ?>...
@@ -1393,7 +1371,6 @@ body {
 
         function deleteResource(id) {
             if (confirm('Êtes-vous sûr de vouloir supprimer cette ressource ?')) {
-                // Form submission handles deletion
             }
         }
 
@@ -1401,13 +1378,11 @@ body {
             alert('Affichage du calendrier de disponibilité pour la ressource ' + id);
         }
 
-        // Notification System
         let notificationDropdown;
         
         document.addEventListener('DOMContentLoaded', function() {
             notificationDropdown = new bootstrap.Dropdown(document.querySelector('[data-bs-toggle="dropdown"]'));
             
-            // Load notifications when dropdown is shown
             document.getElementById('notificationDropdown').addEventListener('show.bs.dropdown', function () {
                 loadNotifications();
             });
@@ -1416,7 +1391,6 @@ body {
         function loadNotifications() {
             const notificationList = document.getElementById('notificationList');
             
-            // Show loading spinner
             notificationList.innerHTML = `
                 <div class="text-center p-3">
                     <div class="spinner-border spinner-border-sm text-primary" role="status">
@@ -1425,7 +1399,6 @@ body {
                 </div>
             `;
             
-            // Fetch notifications via AJAX
             fetch('ajax_handler.php?action=get_notifications')
                 .then(response => response.json())
                 .then(data => {
@@ -1492,7 +1465,6 @@ body {
         }
 
         function handleNotificationClick(notificationId, link) {
-            // Mark notification as read
             fetch('ajax_handler.php?action=mark_notification_read', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1501,11 +1473,9 @@ body {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update notification count
                     const currentCount = parseInt(document.getElementById('notificationCount').textContent);
                     updateNotificationCount(Math.max(0, currentCount - 1));
                     
-                    // Navigate to link if provided
                     if (link && link !== '#') {
                         window.location.href = link;
                     }
@@ -1528,7 +1498,6 @@ body {
             .catch(error => console.error('Error marking all notifications as read:', error));
         }
 
-        // Check for booking conflicts
         document.getElementById('date_debut_booking')?.addEventListener('change', checkConflicts);
         document.getElementById('date_fin_booking')?.addEventListener('change', checkConflicts);
         document.getElementById('resource_id')?.addEventListener('change', checkConflicts);

@@ -3,8 +3,8 @@ session_start();
 
 require 'database.php';
 require_once 'role_check.php';
+require_once 'notifications.php';
 
-// Require login
 requireLogin();
 
 $eventId = isset($_GET['event_id']) ? (int) $_GET['event_id'] : 0;
@@ -13,35 +13,42 @@ $error = '';
 $canAccess = false;
 
 if ($eventId <= 0) {
-    $error = 'Invalid event ID.';
+    $error = 'ID événement invalide.';
 } else {
     try {
         $pdo = getDatabaseConnection();
         
-        // Fetch event details
         $stmt = $pdo->prepare('SELECT id, titre, created_by FROM events WHERE id = ?');
         $stmt->execute([$eventId]);
         $event = $stmt->fetch();
         
         if (!$event) {
-            $error = 'Event not found.';
+            $error = 'Événement non trouvé.';
         } else {
-            // Check if user is organizer or event owner
-            $isEventOwner = ($_SESSION['user_id'] == $event['created_by']);
-            $isEventOrganizer = isEventOrganizer($_SESSION['user_id'], $eventId);
-            $isEventAdmin = isEventAdmin($_SESSION['user_id'], $eventId);
-            
-            if ($isEventOwner || $isEventOrganizer) {
+            if ($event['created_by'] == $_SESSION['user_id'] || isEventOrganizer($_SESSION['user_id'], $eventId) || canDo($eventId, $_SESSION['user_id'], 'can_manage_resources')) {
                 $canAccess = true;
             } else {
-                $error = 'You do not have permission to access this communication hub.';
+                $error = 'Vous n\'avez pas la permission d\'accéder à ce centre de communication.';
             }
         }
     } catch (PDOException $e) {
         error_log("Error fetching event: " . $e->getMessage());
-        $error = 'An error occurred while fetching event details.';
+        $error = 'Une erreur s\'est produite lors de la récupération des détails de l\'événement.';
     }
 }
+
+$unreadCount = 0;
+try {
+    $unreadNotifications = getUnreadNotifications($_SESSION['user_id']);
+    $unreadCount = count($unreadNotifications);
+} catch (Exception $e) {
+    error_log('Error getting notifications: ' . $e->getMessage());
+    $unreadCount = 0;
+}
+
+$isEventOwner = isset($_SESSION['user_id']) && $event && $_SESSION['user_id'] == $event['created_by'];
+$isEventAdmin = isEventAdmin($_SESSION['user_id'], $eventId);
+$isEventOrganizer = isEventOrganizer($_SESSION['user_id'], $eventId);
 
 ?>
 
@@ -50,47 +57,286 @@ if ($eventId <= 0) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EventUp - Communication Hub</title>
+    <title>EventUp - Centre de Communication</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        body {
-            padding-top: 76px;
-            background-color: #f5f7fa;
+        /* ===========================
+   Custom CSS Variables
+   ============================ */
+:root {
+    --primary-orange: #D94A00;
+    --primary-teal: #1B5E52;
+    --light-orange: #ff6b2c;
+    --light-teal: #267061;
+    --warning-yellow: #FFD700;
+    --info-blue: #4A90E2;
+    --success-green: #2ed573;
+    --text-dark: #2c3e50;
+    --text-muted: #657786;
+    --bg-light: #f5f7fa;
+    --border-color: #e1e8ed;
+}
+
+
+/* ===========================
+   Base Styles
+   ============================ */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    padding-top: 76px;
+}
+
+
+/* ===========================
+   Navbar Styles
+   ============================ */
+.navbar {
+    height: 76px;
+    backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    border-bottom: 1px solid var(--border-color);
+}
+
+
+.logo-icon {
+    width: 92px;
+    height: 92px;
+    background: transparent;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 22px;
+}
+
+
+.brand-text {
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--primary-teal);
+    letter-spacing: -0.5px;
+}
+
+
+
+
+.notification-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-light);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 20px;
+    color: var(--text-dark);
+}
+
+
+.notification-btn:hover {
+    background: var(--primary-orange);
+    color: white;
+    transform: scale(1.05);
+}
+
+
+.notification-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--primary-orange);
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+}
+
+
+.admin-profile-btn {
+    display: flex;
+    align-items: center;
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-weight: 500;
+    color: var(--text-dark);
+    transition: all 0.3s ease;
+}
+
+
+.admin-profile-btn:hover {
+    background: white;
+    border-color: var(--primary-orange);
+    color: var(--primary-orange);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+
+.admin-avatar {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--primary-orange), var(--light-orange));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-orange), var(--light-orange)) !important;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-orange), var(--light-orange));
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--light-orange), var(--primary-orange));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(217, 74, 0, 0.3);
+        }
+        
+        .spinner-border {
+            color: var(--primary-orange) !important;
+        }
+        
+        .message-bubble {
+            border-radius: 18px;
+            padding: 12px 16px;
+            margin: 8px 0;
+            max-width: 70%;
+            word-wrap: break-word;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .message-bubble:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .current-user-message {
+            background: linear-gradient(135deg, var(--primary-orange), var(--light-orange));
+            color: white;
+            margin-left: auto;
+        }
+        
+        .other-user-message {
+            background: white;
+            border: 1px solid #e9ecef;
+            margin-right: auto;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-orange);
+            box-shadow: 0 0 0 3px rgba(217, 74, 0, 0.1);
+        }
+        
+        .chat-container {
+            background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+            border-radius: 12px;
+            overflow: hidden;
         }
     </style>
 </head>
 <body>
-    <?php include 'event_header.php'; ?>
+    <!-- Header -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white fixed-top shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center" href="event_details.php?id=<?php echo $eventId; ?>">
+                <div class="logo-icon me-2">
+                    <img src="assets/EventUp_logo.png" alt="EventUp Logo" style="width: 100%; height: 100%; object-fit: contain;">
+                </div>
+                <span class="brand-text">EventUp</span>
+            </a>
+            
+            <div class="d-flex align-items-center ms-auto">
+                <div class="dropdown me-3">
+                    <div class="notification-btn position-relative" data-bs-toggle="dropdown" style="cursor: pointer;">
+                        <i class="bi bi-bell"></i>
+                        <span class="notification-badge" id="notificationCount"><?php echo $unreadCount; ?></span>
+                    </div>
+                    <ul class="dropdown-menu dropdown-menu-end" id="notificationDropdown" style="width: 350px; max-height: 400px; overflow-y: auto;">
+                        <li class="dropdown-header d-flex justify-content-between align-items-center">
+                            <span>Notifications</span>
+                            <a href="#" class="text-decoration-none" onclick="markAllAsRead()">Tout marquer comme lu</a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li id="notificationList">
+                            <div class="text-center p-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Chargement...</span>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="dropdown">
+                    <button class="btn admin-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <div class="admin-avatar me-2"><?php echo strtoupper(substr($_SESSION['user_nom'] ?? 'A', 0, 1)); ?></div>
+                        <span class="d-none d-md-inline"><?php echo htmlspecialchars($_SESSION['user_nom'] ?? 'Admin'); ?></span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="dashboard.php"><i class="bi bi-house me-2"></i>Tableau de bord</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Profil</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Paramètres</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="logout.php"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
 
 <?php if ($canAccess && $event): ?>
-    <div class="container-fluid mt-4">
+    <div class="container-fluid">
         <div class="row">
             <?php include 'event_nav.php'; ?>
             
-            <div class="col-lg-9">
+            <div class="col-lg-9 px-md-4 main-content">
             <!-- Header Card -->
             <div class="card mb-4 shadow-sm">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="mb-0"><i class="bi bi-chat-dots"></i> Communication Hub</h5>
-                            <small class="text-light"><?php echo htmlspecialchars($event['titre']); ?></small>
+                            <h5 class="mb-0"><i class="bi bi-chat-dots-fill me-2"></i>Centre de Communication</h5>
+                            <small class="text-light opacity-90"><?php echo htmlspecialchars($event['titre']); ?></small>
                         </div>
                         <a href="event_details.php?id=<?php echo $eventId; ?>" class="btn btn-light btn-sm">
-                            <i class="bi bi-arrow-left"></i> Back
+                            <i class="bi bi-arrow-left"></i> Retour
                         </a>
                     </div>
                 </div>
             </div>
 
             <!-- Chat Container -->
-            <div class="card shadow-sm" style="height: 600px; display: flex; flex-direction: column;">
+            <div class="card shadow-sm chat-container" style="height: 600px; display: flex; flex-direction: column;">
                 <!-- Messages Area -->
-                <div class="card-body" id="messages-container" style="overflow-y: auto; flex: 1; background-color: #f8f9fa;">
+                <div class="card-body" id="messages-container" style="overflow-y: auto; flex: 1; background: linear-gradient(to bottom, #f8f9fa, #ffffff);">
                     <div class="text-center text-muted py-5">
-                        <div class="spinner-border text-primary mb-3" role="status"></div>
-                        <p>Loading messages...</p>
+                        <div class="spinner-border mb-3" role="status"></div>
+                        <p class="mb-0"><i class="bi bi-chat-dots me-2"></i>Chargement des messages...</p>
                     </div>
                 </div>
 
@@ -101,12 +347,12 @@ if ($eventId <= 0) {
                             type="text" 
                             id="message-input" 
                             class="form-control" 
-                            placeholder="Type your message..." 
+                            placeholder="Tapez votre message..." 
                             autocomplete="off"
                             required
                         >
                         <button type="submit" class="btn btn-primary" id="send-btn">
-                            <i class="bi bi-send"></i> Send
+                            <i class="bi bi-send-fill me-2"></i>Envoyer
                         </button>
                     </form>
                 </div>
@@ -115,10 +361,7 @@ if ($eventId <= 0) {
             <!-- Info Card -->
             <div class="card mt-4 shadow-sm">
                 <div class="card-body">
-                    <p class="mb-0 text-muted">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>Note:</strong> This is a private communication channel for event organizers only. Messages are stored and visible to all organizers of this event.
-                    </p>
+                    <p class="mb-0"><i class="bi bi-info-circle me-2"></i><strong>Note :</strong> Ceci est un canal de communication privé pour les organisateurs d'événements uniquement. Les messages sont stockés et visibles par tous les organisateurs de cet événement.</p>
                 </div>
             </div>
             </div>
@@ -135,13 +378,10 @@ if ($eventId <= 0) {
         let lastMessageId = 0;
         let isLoadingMessages = false;
 
-        // Load messages on page load
         loadMessages();
 
-        // Set up auto-refresh every 2 seconds
         setInterval(loadMessages, 2000);
 
-        // Handle form submission
         messageForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -149,7 +389,7 @@ if ($eventId <= 0) {
             if (!messageText) return;
 
             sendBtn.disabled = true;
-            sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending...';
+            sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Envoi en cours...';
 
             fetch('send_message.php', {
                 method: 'POST',
@@ -165,21 +405,20 @@ if ($eventId <= 0) {
                     lastMessageId = 0; // Reset to load all messages
                     loadMessages();
                 } else {
-                    alert('Failed to send message: ' + (data.message || 'Unknown error'));
+                    alert('Échec de l\'envoi du message : ' + (data.message || 'Erreur inconnue'));
                 }
             })
             .catch(error => {
                 console.error('Error sending message:', error);
-                alert('An error occurred while sending the message.');
+                alert('Une erreur s\'est produite lors de l\'envoi du message.');
             })
             .finally(() => {
                 sendBtn.disabled = false;
-                sendBtn.innerHTML = '<i class="bi bi-send"></i> Send';
+                sendBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Envoyer';
                 messageInput.focus();
             });
         });
 
-        // Handle Enter key to send message
         messageInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -202,7 +441,6 @@ if ($eventId <= 0) {
                 if (data.success) {
                     const messages = data.messages;
                     
-                    // If this is the first load and we have messages
                     if (lastMessageId === 0 && messages.length > 0) {
                         messagesContainer.innerHTML = '';
                         messages.forEach(msg => {
@@ -211,7 +449,6 @@ if ($eventId <= 0) {
                         lastMessageId = messages[messages.length - 1].id;
                         scrollToBottom();
                     } else if (messages.length > 0) {
-                        // Append only new messages
                         messages.forEach(msg => {
                             appendMessage(msg, true); // true = highlight new message
                         });
@@ -220,14 +457,14 @@ if ($eventId <= 0) {
                     }
                 } else {
                     if (lastMessageId === 0) {
-                        messagesContainer.innerHTML = '<div class="text-center text-danger py-5"><p>Failed to load messages.</p></div>';
+                        messagesContainer.innerHTML = '<div class="text-center text-danger py-5"><p>Échec du chargement des messages.</p></div>';
                     }
                 }
             })
             .catch(error => {
                 console.error('Error loading messages:', error);
                 if (lastMessageId === 0) {
-                    messagesContainer.innerHTML = '<div class="text-center text-danger py-5"><p>Error loading messages.</p></div>';
+                    messagesContainer.innerHTML = '<div class="text-center text-danger py-5"><p>Erreur lors du chargement des messages.</p></div>';
                 }
             })
             .finally(() => {
@@ -240,20 +477,21 @@ if ($eventId <= 0) {
             messageEl.className = 'mb-3 message-item' + (isNew ? ' new-message' : '');
             
             const isCurrentUser = message.is_current_user;
-            const bgClass = isCurrentUser ? 'bg-primary text-white' : 'bg-white border';
-            const alignClass = isCurrentUser ? 'ms-auto' : '';
+            const messageClass = isCurrentUser ? 'current-user-message' : 'other-user-message';
+            const alignClass = isCurrentUser ? 'justify-content-end' : 'justify-content-start';
             
             const messageTime = formatTime(message.created_at);
             
             messageEl.innerHTML = `
-                <div class="d-flex ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}">
-                    <div class="card ${bgClass} ${alignClass}" style="max-width: 70%; word-wrap: break-word;">
-                        <div class="card-body py-2 px-3">
-                            <div class="fw-bold small mb-1">${escapeHTML(message.sender_name)}</div>
-                            <div class="mb-2">${escapeHTML(message.message_text)}</div>
-                            <div class="small ${isCurrentUser ? 'text-light' : 'text-muted'}" style="font-size: 0.75rem;">
-                                ${messageTime}
-                            </div>
+                <div class="d-flex ${alignClass}">
+                    <div class="message-bubble ${messageClass}">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="fw-bold small me-2">${escapeHTML(message.sender_name)}</div>
+                            ${isCurrentUser ? '<i class="bi bi-check2-all text-white opacity-75"></i>' : '<i class="bi bi-person-circle text-muted opacity-50"></i>'}
+                        </div>
+                        <div class="mb-2">${escapeHTML(message.message_text)}</div>
+                        <div class="small ${isCurrentUser ? 'text-white opacity-75' : 'text-muted'}" style="font-size: 0.75rem;">
+                            <i class="bi bi-clock me-1"></i>${messageTime}
                         </div>
                     </div>
                 </div>
@@ -261,7 +499,6 @@ if ($eventId <= 0) {
             
             messagesContainer.appendChild(messageEl);
             
-            // Highlight new message briefly
             if (isNew) {
                 messageEl.style.animation = 'fadeIn 0.3s ease-in';
                 setTimeout(() => {
@@ -328,11 +565,12 @@ if ($eventId <= 0) {
 
 <?php else: ?>
     <div class="alert alert-danger">
-        <?php echo htmlspecialchars($error ?: 'Unable to access communication hub.'); ?>
+        <?php echo htmlspecialchars($error ?: 'Impossible d\'accéder au centre de communication.'); ?>
     </div>
-    <a href="index.php" class="btn btn-primary">Back to Events</a>
+    <a href="index.php" class="btn btn-primary"><i class="bi bi-house me-2"></i>Retour aux événements</a>
 <?php endif; ?>
 
+<?php require_once 'footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
